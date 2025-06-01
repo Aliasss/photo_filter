@@ -10,7 +10,9 @@ import 'package:intl/intl.dart';
 import '../constants/colors.dart';
 import '../constants/text_styles.dart';
 import '../models/filter_category.dart';
+import '../models/filter_preset.dart';
 import '../utils/filter_utils.dart';
+import '../utils/favorites_storage.dart';
 import '../widgets/custom_button.dart';
 import 'branding_screen.dart';
 
@@ -36,7 +38,9 @@ class _EditScreenState extends State<EditScreen> {
   List<double> _baseFilterMatrix = []; // 기본 필터 매트릭스
   List<double> _currentMatrix = []; // 현재 적용된 최종 매트릭스
   bool _isSaving = false;
+  bool _isSavingPreset = false; // 프리셋 저장 중 상태
   final GlobalKey _imageKey = GlobalKey(); // RepaintBoundary 키
+  final FavoritesStorage _favoritesStorage = FavoritesStorage(); // 즐겨찾기 저장소
 
   @override
   void initState() {
@@ -317,11 +321,27 @@ class _EditScreenState extends State<EditScreen> {
                   },
                 ),
                 const SizedBox(height: 20),
-                CustomButton(
-                  text: '초기화',
-                  isOutlined: true,
-                  icon: Icons.refresh,
-                  onPressed: _resetValues,
+                Row(
+                  children: [
+                    Expanded(
+                      child: CustomButton(
+                        text: '프리셋 저장',
+                        icon: Icons.favorite,
+                        isOutlined: true,
+                        isLoading: _isSavingPreset,
+                        onPressed: _isSavingPreset ? () {} : _showSavePresetDialog,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: CustomButton(
+                        text: '초기화',
+                        isOutlined: true,
+                        icon: Icons.refresh,
+                        onPressed: _resetValues,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -388,5 +408,205 @@ class _EditScreenState extends State<EditScreen> {
       _warmth = 0;
     });
     _updateMatrix();
+  }
+
+  void _showSavePresetDialog() {
+    final TextEditingController nameController = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('프리셋 저장', style: AppTextStyles.sectionTitle),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '현재 설정을 프리셋으로 저장합니다.',
+              style: AppTextStyles.categoryDesc,
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: nameController,
+              decoration: InputDecoration(
+                labelText: '프리셋 이름',
+                hintText: '예) 내 스타일, 따뜻한 느낌 등',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 16,
+                ),
+              ),
+              maxLength: 20,
+            ),
+            const SizedBox(height: 8),
+            if (widget.selectedFilter != null)
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.background,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '포함될 설정:',
+                      style: AppTextStyles.categoryDesc.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text('• 필터: ${widget.selectedFilter}', style: AppTextStyles.categoryDesc),
+                    Text('• 밝기: ${_brightness.round()}', style: AppTextStyles.categoryDesc),
+                    Text('• 대비: ${_contrast.round()}', style: AppTextStyles.categoryDesc),
+                    Text('• 채도: ${_saturation.round()}', style: AppTextStyles.categoryDesc),
+                    Text('• 따뜻함: ${_warmth.round()}', style: AppTextStyles.categoryDesc),
+                  ],
+                ),
+              ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              '취소',
+              style: AppTextStyles.buttonText.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              final name = nameController.text.trim();
+              if (name.isNotEmpty) {
+                Navigator.pop(context);
+                _savePreset(name);
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('프리셋 이름을 입력해주세요.'),
+                    backgroundColor: Colors.orange,
+                  ),
+                );
+              }
+            },
+            child: Text(
+              '저장',
+              style: AppTextStyles.buttonText.copyWith(
+                color: AppColors.primary,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _savePreset(String name) async {
+    setState(() {
+      _isSavingPreset = true;
+    });
+
+    try {
+      // 중복 이름 체크
+      final isExists = await _favoritesStorage.isNameExists(name);
+      if (isExists) {
+        final bool? shouldOverwrite = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text('중복된 이름', style: AppTextStyles.sectionTitle),
+            content: Text(
+              "'$name' 이름의 프리셋이 이미 있습니다.\n덮어쓰시겠습니까?",
+              style: AppTextStyles.categoryDesc,
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: Text(
+                  '취소',
+                  style: AppTextStyles.buttonText.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: Text(
+                  '덮어쓰기',
+                  style: AppTextStyles.buttonText.copyWith(
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+
+        if (shouldOverwrite != true) {
+          setState(() {
+            _isSavingPreset = false;
+          });
+          return;
+        }
+      }
+
+      // 프리셋 생성
+      final preset = FilterPreset(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        name: name,
+        filterType: widget.selectedFilter,
+        brightness: _brightness,
+        contrast: _contrast,
+        saturation: _saturation,
+        warmth: _warmth,
+        createdAt: DateTime.now(),
+      );
+
+      // 저장
+      final success = await _favoritesStorage.savePreset(preset);
+      
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 8),
+                Text("'$name' 프리셋이 저장되었습니다."),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      } else {
+        throw Exception('저장 실패');
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.error, color: Colors.white),
+              const SizedBox(width: 8),
+              Expanded(child: Text('프리셋 저장 중 오류가 발생했습니다: ${e.toString()}')),
+            ],
+          ),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      setState(() {
+        _isSavingPreset = false;
+      });
+    }
   }
 } 

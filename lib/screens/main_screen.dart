@@ -12,12 +12,16 @@ import '../constants/colors.dart';
 import '../constants/text_styles.dart';
 import '../models/filter_category.dart';
 import '../models/filter_option.dart';
+import '../models/filter_preset.dart';
 import '../utils/filter_utils.dart';
+import '../utils/favorites_storage.dart';
 import '../widgets/category_card.dart';
 import '../widgets/custom_button.dart';
 import '../widgets/filter_option_card.dart';
 import 'edit_screen.dart';
 import 'branding_screen.dart';
+import 'favorites_screen.dart';
+import 'templates_screen.dart';
 import 'package:image_gallery_saver/image_gallery_saver.dart';
 
 class MainScreen extends StatefulWidget {
@@ -320,7 +324,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
           _buildNavItem('편집', Icons.edit, 0),
           _buildNavItem('템플릿', Icons.grid_view, 1),
           _buildNavItem('브랜딩', Icons.palette, 2),
-          _buildNavItem('내 작업', Icons.folder, 3),
+          _buildNavItem('즐겨찾기', Icons.favorite, 3),
         ],
       ),
     );
@@ -333,29 +337,33 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
         if (index == 2) {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => BrandingScreen()),
-          );
-        } else if (index == 1 || index == 3) {
-          // 템플릿 탭과 내 작업 탭
-          showDialog(
-            context: context,
-            builder: (context) => AlertDialog(
-              title: Text('알림', style: AppTextStyles.sectionTitle),
-              content: Text(
-                '곧 출시 예정입니다.',
-                style: AppTextStyles.categoryDesc,
+            MaterialPageRoute(
+              builder: (context) => BrandingScreen(
+                baseImage: _originalImage,
+                selectedFilter: _selectedFilterIndex >= 0 
+                  ? FilterCategory.categories[_selectedCategoryIndex].filters[_selectedFilterIndex]
+                  : null,
               ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: Text(
-                    '확인',
-                    style: AppTextStyles.buttonText.copyWith(
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ),
-              ],
+            ),
+          );
+        } else if (index == 3) {
+          // 즐겨찾기 탭
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => FavoritesScreen(
+                onPresetSelected: (FilterPreset preset) {
+                  _applyPreset(preset);
+                },
+              ),
+            ),
+          );
+        } else if (index == 1) {
+          // 템플릿 탭
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => TemplatesScreen(),
             ),
           );
         } else {
@@ -714,5 +722,90 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
         const SnackBar(content: Text('이미지를 저장하는데 실패했습니다.')),
       );
     }
+  }
+
+  void _applyPreset(FilterPreset preset) {
+    if (_originalImage == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('먼저 이미지를 선택해주세요.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      // 프리셋의 필터 적용
+      if (preset.filterType != null) {
+        // 해당 필터가 속한 카테고리 찾기
+        for (int catIndex = 0; catIndex < FilterCategory.categories.length; catIndex++) {
+          final category = FilterCategory.categories[catIndex];
+          final filterIndex = category.filters.indexOf(preset.filterType!);
+          if (filterIndex != -1) {
+            _selectedCategoryIndex = catIndex;
+            _selectedFilterIndex = filterIndex;
+            break;
+          }
+        }
+      } else {
+        _selectedFilterIndex = -1;
+      }
+
+      // 매트릭스 계산 및 적용
+      List<double> baseMatrix = preset.filterType != null
+          ? FilterUtils.getMatrixForFilter(preset.filterType!)
+          : [
+              1.0, 0.0, 0.0, 0.0, 0.0,
+              0.0, 1.0, 0.0, 0.0, 0.0,
+              0.0, 0.0, 1.0, 0.0, 0.0,
+              0.0, 0.0, 0.0, 1.0, 0.0,
+            ];
+
+      // 편집 효과 매트릭스 생성
+      List<double> adjustmentMatrix = FilterUtils.createAdjustmentMatrix(
+        brightness: preset.brightness,
+        contrast: preset.contrast,
+        saturation: preset.saturation,
+        warmth: preset.warmth,
+      );
+
+      // 두 매트릭스 합성
+      _currentMatrix = _combineMatrices(baseMatrix, adjustmentMatrix);
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(Icons.check_circle, color: Colors.white),
+            const SizedBox(width: 8),
+            Text("'${preset.name}' 프리셋이 적용되었습니다."),
+          ],
+        ),
+        backgroundColor: Colors.green,
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  // 두 매트릭스를 합성하는 함수 (edit_screen.dart와 동일)
+  List<double> _combineMatrices(List<double> matrix1, List<double> matrix2) {
+    List<double> result = List.filled(20, 0.0);
+    
+    for (int row = 0; row < 4; row++) {
+      for (int col = 0; col < 5; col++) {
+        if (col < 4) {
+          for (int k = 0; k < 4; k++) {
+            result[row * 5 + col] += matrix1[row * 5 + k] * matrix2[k * 5 + col];
+          }
+        } else {
+          result[row * 5 + col] = matrix1[row * 5 + col] + matrix2[row * 5 + col];
+        }
+      }
+    }
+    
+    return result;
   }
 } 

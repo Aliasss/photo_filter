@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:typed_data';
+// import 'dart:html' as html;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -14,6 +15,7 @@ import '../widgets/custom_button.dart';
 import '../widgets/filter_option_card.dart';
 import 'edit_screen.dart';
 import 'branding_screen.dart';
+import 'package:image_gallery_saver/image_gallery_saver.dart';
 
 class MainScreen extends StatefulWidget {
   @override
@@ -556,5 +558,45 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
         ),
       ),
     );
+  }
+
+  Future<void> _saveImage() async {
+    if (_originalImage == null) return;
+
+    setState(() {
+      _isUploading = true;
+    });
+
+    try {
+      Uint8List imageBytes;
+      String fileName;
+
+      if (_originalImage is File) {
+        final File file = _originalImage as File;
+        imageBytes = await file.readAsBytes();
+      } else {
+        imageBytes = _originalImage as Uint8List;
+      }
+      fileName = 'business_photo_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final result = await ImageGallerySaver.saveImage(
+        imageBytes,
+        name: fileName,
+        quality: 100,
+      );
+      if (result['isSuccess'] == true || result['isSuccess'] == 1) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('갤러리에 저장되었습니다.'), duration: Duration(seconds: 2)),
+        );
+      } else {
+        throw Exception('이미지 저장 실패');
+      }
+    } catch (e) {
+      setState(() {
+        _isUploading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('이미지를 저장하는데 실패했습니다.')),
+      );
+    }
   }
 } 

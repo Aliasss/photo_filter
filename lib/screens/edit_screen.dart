@@ -3,7 +3,6 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:image_gallery_saver/image_gallery_saver.dart';
 import 'package:intl/intl.dart';
 import '../constants/colors.dart';
@@ -12,9 +11,6 @@ import '../models/filter_category.dart';
 import '../utils/filter_utils.dart';
 import '../widgets/custom_button.dart';
 import 'branding_screen.dart';
-
-// 웹 전용 import
-import 'dart:html' if (dart.library.io) 'dart:io' as platform;
 
 class EditScreen extends StatefulWidget {
   final dynamic image; // File 또는 Uint8List
@@ -71,58 +67,36 @@ class _EditScreenState extends State<EditScreen> {
     });
 
     try {
-      // 이미지 데이터 가져오기
       Uint8List imageBytes;
-      if (kIsWeb) {
-        imageBytes = widget.image as Uint8List;
-      } else {
+      if (widget.image is File) {
         final File file = widget.image as File;
         imageBytes = await file.readAsBytes();
+      } else {
+        imageBytes = widget.image as Uint8List;
       }
 
-      // 파일명 생성
       final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
       final fileName = 'edited_image_$timestamp.png';
 
-      if (kIsWeb) {
-        // 웹 저장 로직
-        final blob = platform.Blob([imageBytes]);
-        final url = platform.Url.createObjectUrlFromBlob(blob);
-        final anchor = platform.AnchorElement()
-          ..href = url
-          ..download = fileName
-          ..click();
-        platform.Url.revokeObjectUrl(url);
-
+      final result = await ImageGallerySaver.saveImage(
+        imageBytes,
+        name: fileName,
+        quality: 100,
+      );
+      if (result['isSuccess'] == true || result['isSuccess'] == 1) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('이미지가 다운로드되었습니다.'),
+            content: Text('갤러리에 저장되었습니다.'),
             duration: Duration(seconds: 2),
           ),
         );
       } else {
-        // 모바일 저장 로직
-        final result = await ImageGallerySaver.saveImage(
-          imageBytes,
-          name: fileName,
-          quality: 100,
-        );
-
-        if (result['isSuccess']) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('갤러리에 저장되었습니다.'),
-              duration: Duration(seconds: 2),
-            ),
-          );
-        } else {
-          throw Exception('이미지 저장 실패');
-        }
+        throw Exception('이미지 저장 실패');
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('저장 중 오류가 발생했습니다: ${e.toString()}'),
+          content: Text('저장 중 오류가 발생했습니다: \n${e.toString()}'),
           backgroundColor: Colors.red,
           duration: const Duration(seconds: 2),
         ),
@@ -162,15 +136,10 @@ class _EditScreenState extends State<EditScreen> {
             child: Center(
               child: ColorFiltered(
                 colorFilter: ColorFilter.matrix(_currentMatrix),
-                child: kIsWeb
-                  ? Image.memory(
-                      widget.image,
-                      fit: BoxFit.contain,
-                    )
-                  : Image.file(
-                      widget.image,
-                      fit: BoxFit.contain,
-                    ),
+                child: Image.file(
+                  widget.image,
+                  fit: BoxFit.contain,
+                ),
               ),
             ),
           ),

@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:image_picker/image_picker.dart';
 import '../constants/colors.dart';
 import '../constants/text_styles.dart';
@@ -316,6 +317,29 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
             context,
             MaterialPageRoute(builder: (context) => BrandingScreen()),
           );
+        } else if (index == 1 || index == 3) {
+          // 템플릿 탭과 내 작업 탭
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: Text('알림', style: AppTextStyles.sectionTitle),
+              content: Text(
+                '곧 출시 예정입니다.',
+                style: AppTextStyles.categoryDesc,
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(
+                    '확인',
+                    style: AppTextStyles.buttonText.copyWith(
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
         }
       },
       child: AnimatedContainer(
@@ -343,6 +367,12 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   }
   
   Future<void> _showImageSourceDialog() async {
+    if (kIsWeb) {
+      // 웹에서는 갤러리만 표시
+      _pickImage(ImageSource.gallery);
+      return;
+    }
+
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -404,7 +434,12 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
       final XFile? image = await _picker.pickImage(source: source);
       if (image != null) {
         setState(() {
-          _selectedImage = File(image.path);
+          if (kIsWeb) {
+            // 웹에서는 XFile을 직접 사용
+            _selectedImage = File(image.path);
+          } else {
+            _selectedImage = File(image.path);
+          }
           _isUploading = false;
         });
       }
@@ -419,7 +454,48 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   }
   
   void _showPreviewDialog() {
-    // TODO: 미리보기 다이얼로그 구현
+    if (_selectedImage == null) return;
+
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('미리보기', style: AppTextStyles.sectionTitle),
+              const SizedBox(height: 16),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.file(
+                  _selectedImage!,
+                  height: 200,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                ),
+              ),
+              const SizedBox(height: 16),
+              if (_selectedFilterIndex >= 0) ...[
+                Text(
+                  '선택된 필터: ${FilterCategory.categories[_selectedCategoryIndex].filters[_selectedFilterIndex]}',
+                  style: AppTextStyles.categoryDesc,
+                ),
+                const SizedBox(height: 8),
+              ],
+              const SizedBox(height: 16),
+              CustomButton(
+                text: '닫기',
+                onPressed: () => Navigator.pop(context),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
   
   void _navigateToEditScreen() {

@@ -1,0 +1,203 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Cursor AI 개발 지침서 - 비즈니스 포토 앱
+
+## 📁 프로젝트 개요
+- **앱명**: 비즈니스 포토 - 소상공인 특화 필터 앱
+- **플랫폼**: Flutter (Android/iOS)
+- **타겟**: 소상공인, 매장 운영자
+- **목적**: 매장용 사진을 프로처럼 편집
+
+## 🎯 핵심 기능 요구사항
+
+### 1. 메인 화면 (lib/screens/main_screen.dart)
+- 사진 업로드 (카메라/갤러리)
+- 카테고리별 필터 선택 (음식, 매장, 제품, 패션)
+- 필터 미리보기
+- 하단 네비게이션
+
+### 2. 편집 화면 (lib/screens/edit_screen.dart)
+- 실시간 필터 적용
+- 슬라이더 조정 (밝기, 대비, 채도, 따뜻함)
+- 이미지 저장
+
+### 3. 브랜딩 화면 (lib/screens/branding_screen.dart)
+- 로고 추가
+- 브랜드 컬러 적용
+- 워터마크 기능
+
+## 🎨 디자인 시스템
+
+### 색상 (lib/constants/colors.dart)
+```dart
+- Primary: #4F46E5 (인디고)
+- Primary Dark: #7C3AED (퍼플)
+- Background: #F8FAFC (라이트 그레이)
+- Surface: #FFFFFF (화이트)
+- Text Primary: #1F2937 (다크 그레이)
+- Text Secondary: #6B7280 (미디움 그레이)
+```
+
+### 텍스트 스타일 (lib/constants/text_styles.dart)
+- 폰트: NotoSans (한글 지원)
+- 헤더: 24px, Bold
+- 섹션 타이틀: 18px, SemiBold
+- 버튼: 16px, SemiBold
+
+## 🧩 컴포넌트 구조
+
+### 재사용 위젯들
+1. **CustomButton** (lib/widgets/custom_button.dart)
+   - Primary/Secondary 버튼
+   - 로딩 상태 지원
+   - 애니메이션 효과
+
+2. **CategoryCard** (lib/widgets/category_card.dart)
+   - 카테고리 선택 카드
+   - 활성 상태 표시
+   - 호버 애니메이션
+
+3. **FilterOptionCard** (lib/widgets/filter_option_card.dart)
+   - 필터 옵션 카드
+   - 그라데이션 배경
+   - 선택 상태 표시
+
+## 📱 사용자 경험 가이드라인
+
+### 애니메이션
+- 모든 상태 변화에 부드러운 트랜지션 (200-300ms)
+- 카드 호버: scale(1.02) + 그림자 효과
+- 버튼 터치: scale(0.95) + 햅틱 피드백
+
+### 피드백
+- 성공: 녹색 스낵바
+- 오류: 빨간색 스낵바
+- 로딩: 프로그레스 인디케이터
+- 터치: 햅틱 피드백
+
+### 접근성
+- 색상 대비 4.5:1 이상
+- 터치 영역 44px 이상
+- 스크린 리더 지원
+
+## 🔧 기술적 요구사항
+
+### 의존성 (pubspec.yaml)
+```yaml
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.6
+  image_picker: ^1.0.4
+  image: ^4.1.3
+  path_provider: ^2.1.1
+  shared_preferences: ^2.2.2
+```
+
+### 상태 관리
+- StatefulWidget 사용
+- 복잡한 상태는 Provider 고려
+- 메모리 효율적인 이미지 처리
+
+### 성능 최적화
+- 이미지 압축 (maxWidth: 1920, quality: 85)
+- ListView.builder 사용
+- const 키워드 적극 활용
+- 불필요한 rebuild 방지
+
+## 📁 파일 구조 가이드
+
+```
+lib/
+├── main.dart                    # 앱 진입점
+├── constants/
+│   ├── colors.dart             # 색상 상수
+│   └── text_styles.dart        # 텍스트 스타일
+├── models/
+│   ├── filter_category.dart    # 필터 카테고리 모델
+│   └── filter_option.dart      # 필터 옵션 모델
+├── screens/
+│   ├── main_screen.dart        # 메인 화면
+│   ├── edit_screen.dart        # 편집 화면
+│   └── branding_screen.dart    # 브랜딩 화면
+├── widgets/
+│   ├── category_card.dart      # 카테고리 카드
+│   ├── custom_button.dart      # 커스텀 버튼
+│   └── filter_option_card.dart # 필터 옵션 카드
+└── utils/
+    └── image_utils.dart        # 이미지 유틸리티
+```
+
+## 🐛 디버깅 및 테스트
+
+### 에러 처리
+- 모든 async 함수에 try-catch
+- 사용자 친화적 에러 메시지
+- 로그 기록 (개발 모드)
+
+### 테스트 방법
+- Hot Reload 활용
+- 실제 디바이스 테스트
+- 다양한 화면 크기 확인
+
+## 🚀 개발 워크플로우
+
+### 1. 기능 구현 순서
+1. UI 레이아웃 먼저
+2. 더미 데이터로 동작 확인
+3. 실제 로직 구현
+4. 에러 처리 추가
+5. 애니메이션 및 UX 개선
+
+### 2. 코드 품질
+- 의미있는 변수명 사용
+- 함수는 50줄 이하로 유지
+- 주석은 왜(Why)를 설명
+- 코드 포맷팅 자동화
+
+### 3. Git 커밋 메시지
+```
+feat: 카테고리 필터 기능 추가
+fix: 이미지 업로드 오류 수정
+style: 버튼 디자인 개선
+refactor: 상태 관리 로직 개선
+```
+
+## 📝 개발 시 주의사항
+
+### 성능
+- 큰 이미지 파일 처리 시 isolate 사용 고려
+- 메모리 누수 방지 (dispose 함수 확실히 호출)
+- 애니메이션 컨트롤러 생명주기 관리
+
+### 사용자 경험
+- 로딩 시간 2초 이상 시 프로그레스 표시
+- 에러 상황에서도 앱 크래시 방지
+- 오프라인 상황 고려
+
+### 플랫폼별 고려사항
+- Android: 백 버튼 처리
+- iOS: Safe Area 고려
+- 권한 요청 적절한 타이밍
+
+## 🎯 우선순위 개발 순서
+
+1. **1순위**: 메인 화면 UI + 기본 네비게이션
+2. **2순위**: 이미지 업로드 + 카테고리 선택
+3. **3순위**: 편집 화면 + 실시간 필터
+4. **4순위**: 브랜딩 기능
+5. **5순위**: 애니메이션 + UX 개선
+
+## 💡 추가 기능 아이디어
+
+### 기본 기능 완성 후
+- 일괄 편집 기능
+- 클라우드 저장소 연동
+- SNS 공유 기능
+- 사용자 피드백 시스템
+- 프리미엄 필터 (결제)
+
+이 가이드를 참고하여 체계적이고 일관성 있는 코드를 작성해주세요!

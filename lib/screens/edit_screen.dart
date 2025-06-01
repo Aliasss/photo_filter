@@ -14,7 +14,7 @@ import '../widgets/custom_button.dart';
 import 'branding_screen.dart';
 
 // 웹 전용 import
-import 'dart:html' as html if (dart.library.io) 'dart:io' as io;
+import 'dart:html' if (dart.library.io) 'dart:io' as platform;
 
 class EditScreen extends StatefulWidget {
   final dynamic image; // File 또는 Uint8List
@@ -85,13 +85,13 @@ class _EditScreenState extends State<EditScreen> {
 
       if (kIsWeb) {
         // 웹 저장 로직
-        final blob = html.Blob([imageBytes]);
-        final url = html.Url.createObjectUrlFromBlob(blob);
-        final anchor = html.AnchorElement()
+        final blob = platform.Blob([imageBytes]);
+        final url = platform.Url.createObjectUrlFromBlob(blob);
+        final anchor = platform.AnchorElement()
           ..href = url
           ..download = fileName
           ..click();
-        html.Url.revokeObjectUrl(url);
+        platform.Url.revokeObjectUrl(url);
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(

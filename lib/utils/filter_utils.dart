@@ -144,16 +144,20 @@ class FilterUtils {
     required double saturation,
     required double warmth,
   }) {
-    double b = brightness / 100.0;
-    double c = (contrast + 100.0) / 100.0;
-    double s = (saturation + 100.0) / 100.0;
-    double w = warmth / 100.0;
+    print('매트릭스 생성: 밝기=$brightness, 대비=$contrast, 채도=$saturation, 따뜻함=$warmth');
     
+    // 값들을 적절한 범위로 변환
+    double b = brightness / 100.0; // -1.0 ~ 1.0
+    double c = 1.0 + (contrast / 100.0); // 0.0 ~ 2.0
+    double s = 1.0 + (saturation / 100.0); // 0.0 ~ 2.0
+    double w = warmth / 100.0; // -1.0 ~ 1.0
+    
+    // ColorMatrix 생성 (4x5 형태)
     return [
-      c * s, 0, 0, 0, b + w,
-      0, c * s, 0, 0, b,
-      0, 0, c * s, 0, b - w,
-      0, 0, 0, 1, 0,
+      c * s + w * 0.1, w * 0.05, -w * 0.05, 0.0, b * 255,  // Red
+      w * 0.05, c * s, -w * 0.1, 0.0, b * 255,             // Green  
+      -w * 0.1, -w * 0.05, c * s + w * 0.15, 0.0, b * 255, // Blue
+      0.0, 0.0, 0.0, 1.0, 0.0,                             // Alpha
     ];
   }
 } 

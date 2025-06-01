@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../constants/colors.dart';
 import '../constants/text_styles.dart';
 import '../models/filter_option.dart';
-import '../utils/filter_utils.dart';
 
 class FilterOptionCard extends StatelessWidget {
   final FilterOption filter;
@@ -18,8 +17,6 @@ class FilterOptionCard extends StatelessWidget {
   
   @override
   Widget build(BuildContext context) {
-    final preset = FilterUtils.getFilterPreset(filter.name);
-    
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -38,24 +35,27 @@ class FilterOptionCard extends StatelessWidget {
           children: [
             Text(
               filter.name,
-              style: AppTextStyles.categoryDesc.copyWith(
+              style: AppTextStyles.categoryName.copyWith(
                 color: isSelected ? Colors.white : AppColors.textPrimary,
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
               ),
               textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-            if (isSelected) ...[
-              const SizedBox(height: 4),
-              Text(
-                '밝기: ${(preset['brightness']! * 100).round()}%\n'
-                '대비: ${(preset['contrast']! * 100).round()}%\n'
-                '따뜻함: ${(preset['warmth']! * 100).round()}%',
-                style: AppTextStyles.categoryDesc.copyWith(
-                  color: Colors.white70,
-                  fontSize: 10,
-                ),
-                textAlign: TextAlign.center,
+            const SizedBox(height: 4),
+            Text(
+              filter.description,
+              style: AppTextStyles.categoryDesc.copyWith(
+                color: isSelected ? Colors.white70 : AppColors.textSecondary,
+                fontSize: 11,
+                height: 1.2,
               ),
-            ],
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
           ],
         ),
       ),

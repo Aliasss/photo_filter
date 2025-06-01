@@ -308,10 +308,6 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     final isSelected = _selectedNavIndex == index;
     return GestureDetector(
       onTap: () {
-        setState(() {
-          _selectedNavIndex = index;
-        });
-        
         if (index == 2) {
           Navigator.push(
             context,
@@ -340,6 +336,10 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
               ],
             ),
           );
+        } else {
+          setState(() {
+            _selectedNavIndex = index;
+          });
         }
       },
       child: AnimatedContainer(

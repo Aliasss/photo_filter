@@ -24,7 +24,8 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   int _selectedCategoryIndex = 0;
   int _selectedNavIndex = 0;
   int _selectedFilterIndex = -1;
-  dynamic _selectedImage; // File 또는 Uint8List
+  dynamic _originalImage; // 원본 이미지 (File 또는 Uint8List)
+  List<double> _currentMatrix = []; // 현재 적용된 필터 매트릭스
   bool _isUploading = false;
   
   late AnimationController _fadeController;
@@ -43,6 +44,14 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
       CurvedAnimation(parent: _fadeController, curve: Curves.easeInOut),
     );
     _fadeController.forward();
+    
+    // 초기 매트릭스 설정
+    _currentMatrix = [
+      1.0, 0.0, 0.0, 0.0, 0.0,
+      0.0, 1.0, 0.0, 0.0, 0.0,
+      0.0, 0.0, 1.0, 0.0, 0.0,
+      0.0, 0.0, 0.0, 1.0, 0.0,
+    ];
   }
   
   @override
@@ -112,7 +121,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
         width: double.infinity,
         height: 280,
         decoration: BoxDecoration(
-          gradient: _selectedImage == null 
+          gradient: _originalImage == null 
             ? const LinearGradient(
                 colors: [Color(0xFFF3F4F6), Color(0xFFE5E7EB)],
               )
@@ -123,7 +132,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
             width: 2,
           ),
         ),
-        child: _selectedImage == null 
+        child: _originalImage == null 
           ? Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -160,28 +169,16 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                 ClipRRect(
                   borderRadius: BorderRadius.circular(16),
                   child: ColorFiltered(
-                    colorFilter: _selectedFilterIndex >= 0
-                      ? ColorFilter.matrix(
-                          FilterUtils.getMatrixForFilter(
-                            FilterCategory.categories[_selectedCategoryIndex]
-                                .filters[_selectedFilterIndex],
-                          ),
-                        )
-                      : const ColorFilter.matrix([
-                          1.0, 0.0, 0.0, 0.0, 0.0,
-                          0.0, 1.0, 0.0, 0.0, 0.0,
-                          0.0, 0.0, 1.0, 0.0, 0.0,
-                          0.0, 0.0, 0.0, 1.0, 0.0,
-                        ]),
+                    colorFilter: ColorFilter.matrix(_currentMatrix),
                     child: kIsWeb
                       ? Image.memory(
-                          _selectedImage,
+                          _originalImage,
                           width: double.infinity,
                           height: 280,
                           fit: BoxFit.cover,
                         )
                       : Image.file(
-                          _selectedImage,
+                          _originalImage,
                           width: double.infinity,
                           height: 280,
                           fit: BoxFit.cover,
@@ -194,8 +191,14 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                   child: GestureDetector(
                     onTap: () {
                       setState(() {
-                        _selectedImage = null;
+                        _originalImage = null;
                         _selectedFilterIndex = -1;
+                        _currentMatrix = [
+                          1.0, 0.0, 0.0, 0.0, 0.0,
+                          0.0, 1.0, 0.0, 0.0, 0.0,
+                          0.0, 0.0, 1.0, 0.0, 0.0,
+                          0.0, 0.0, 0.0, 1.0, 0.0,
+                        ];
                       });
                     },
                     child: Container(
@@ -271,9 +274,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                 ),
                 isSelected: index == _selectedFilterIndex,
                 onTap: () {
-                  setState(() {
-                    _selectedFilterIndex = index == _selectedFilterIndex ? -1 : index;
-                  });
+                  _applyFilter(index);
                   HapticFeedback.lightImpact();
                 },
               );
@@ -291,14 +292,14 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
           child: CustomButton(
             text: '미리보기',
             isOutlined: true,
-            onPressed: _selectedImage != null ? () => _showPreviewDialog() : () {},
+            onPressed: _originalImage != null ? () => _showPreviewDialog() : () {},
           ),
         ),
         const SizedBox(width: 12),
         Expanded(
           child: CustomButton(
             text: '편집 시작',
-            onPressed: _selectedImage != null ? () => _navigateToEditScreen() : () {},
+            onPressed: _originalImage != null ? () => _navigateToEditScreen() : () {},
           ),
         ),
       ],
@@ -464,14 +465,30 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
           // 웹에서는 Uint8List로 처리
           final Uint8List bytes = await image.readAsBytes();
           setState(() {
-            _selectedImage = bytes;
+            _originalImage = bytes;
             _isUploading = false;
+            // 이미지 선택 시 필터 초기화
+            _selectedFilterIndex = -1;
+            _currentMatrix = [
+              1.0, 0.0, 0.0, 0.0, 0.0,
+              0.0, 1.0, 0.0, 0.0, 0.0,
+              0.0, 0.0, 1.0, 0.0, 0.0,
+              0.0, 0.0, 0.0, 1.0, 0.0,
+            ];
           });
         } else {
           // 모바일에서는 File 객체 사용
           setState(() {
-            _selectedImage = File(image.path);
+            _originalImage = File(image.path);
             _isUploading = false;
+            // 이미지 선택 시 필터 초기화
+            _selectedFilterIndex = -1;
+            _currentMatrix = [
+              1.0, 0.0, 0.0, 0.0, 0.0,
+              0.0, 1.0, 0.0, 0.0, 0.0,
+              0.0, 0.0, 1.0, 0.0, 0.0,
+              0.0, 0.0, 0.0, 1.0, 0.0,
+            ];
           });
         }
       }
@@ -486,7 +503,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   }
   
   void _showPreviewDialog() {
-    if (_selectedImage == null) return;
+    if (_originalImage == null) return;
 
     showDialog(
       context: context,
@@ -503,19 +520,22 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
               const SizedBox(height: 16),
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: kIsWeb
-                  ? Image.memory(
-                      _selectedImage,
-                      height: 200,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                    )
-                  : Image.file(
-                      _selectedImage,
-                      height: 200,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                    ),
+                child: ColorFiltered(
+                  colorFilter: ColorFilter.matrix(_currentMatrix),
+                  child: kIsWeb
+                    ? Image.memory(
+                        _originalImage,
+                        height: 200,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                      )
+                    : Image.file(
+                        _originalImage,
+                        height: 200,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                      ),
+                ),
               ),
               const SizedBox(height: 16),
               if (_selectedFilterIndex >= 0) ...[
@@ -542,12 +562,35 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
       context,
       MaterialPageRoute(
         builder: (context) => EditScreen(
-          image: _selectedImage,
+          image: _originalImage,
           selectedFilter: _selectedFilterIndex >= 0 
             ? FilterCategory.categories[_selectedCategoryIndex].filters[_selectedFilterIndex]
             : null,
         ),
       ),
     );
+  }
+
+  // 필터 적용 함수
+  void _applyFilter(int filterIndex) {
+    if (_originalImage == null) return;
+
+    setState(() {
+      _selectedFilterIndex = filterIndex == _selectedFilterIndex ? -1 : filterIndex;
+      
+      if (_selectedFilterIndex >= 0) {
+        final filterName = FilterCategory.categories[_selectedCategoryIndex]
+            .filters[_selectedFilterIndex];
+        _currentMatrix = FilterUtils.getMatrixForFilter(filterName);
+      } else {
+        // 필터 해제 시 기본 매트릭스로 복원
+        _currentMatrix = [
+          1.0, 0.0, 0.0, 0.0, 0.0,
+          0.0, 1.0, 0.0, 0.0, 0.0,
+          0.0, 0.0, 1.0, 0.0, 0.0,
+          0.0, 0.0, 0.0, 1.0, 0.0,
+        ];
+      }
+    });
   }
 } 

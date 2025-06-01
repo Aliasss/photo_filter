@@ -8,6 +8,7 @@ import '../constants/colors.dart';
 import '../constants/text_styles.dart';
 import '../models/filter_category.dart';
 import '../models/filter_option.dart';
+import '../utils/filter_utils.dart';
 import '../widgets/category_card.dart';
 import '../widgets/custom_button.dart';
 import '../widgets/filter_option_card.dart';
@@ -158,19 +159,34 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
               children: [
                 ClipRRect(
                   borderRadius: BorderRadius.circular(16),
-                  child: kIsWeb
-                    ? Image.memory(
-                        _selectedImage,
-                        width: double.infinity,
-                        height: 280,
-                        fit: BoxFit.cover,
-                      )
-                    : Image.file(
-                        _selectedImage,
-                        width: double.infinity,
-                        height: 280,
-                        fit: BoxFit.cover,
-                      ),
+                  child: ColorFiltered(
+                    colorFilter: _selectedFilterIndex >= 0
+                      ? ColorFilter.matrix(
+                          FilterUtils.getMatrixForFilter(
+                            FilterCategory.categories[_selectedCategoryIndex]
+                                .filters[_selectedFilterIndex],
+                          ),
+                        )
+                      : const ColorFilter.matrix([
+                          1.0, 0.0, 0.0, 0.0, 0.0,
+                          0.0, 1.0, 0.0, 0.0, 0.0,
+                          0.0, 0.0, 1.0, 0.0, 0.0,
+                          0.0, 0.0, 0.0, 1.0, 0.0,
+                        ]),
+                    child: kIsWeb
+                      ? Image.memory(
+                          _selectedImage,
+                          width: double.infinity,
+                          height: 280,
+                          fit: BoxFit.cover,
+                        )
+                      : Image.file(
+                          _selectedImage,
+                          width: double.infinity,
+                          height: 280,
+                          fit: BoxFit.cover,
+                        ),
+                  ),
                 ),
                 Positioned(
                   top: 12,

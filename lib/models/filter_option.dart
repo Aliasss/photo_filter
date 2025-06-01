@@ -1,3 +1,5 @@
+import '../utils/filter_utils.dart';
+
 class FilterOption {
   final String name;
   final String category;
@@ -8,6 +10,15 @@ class FilterOption {
     required this.category,
     required this.adjustments,
   });
+  
+  factory FilterOption.fromPreset(String name, String category) {
+    final preset = FilterUtils.getFilterPreset(name);
+    return FilterOption(
+      name: name,
+      category: category,
+      adjustments: preset,
+    );
+  }
   
   static const Map<String, List<FilterOption>> categoryFilters = {
     '음식': [

@@ -57,6 +57,7 @@ class _EditScreenState extends State<EditScreen> {
       _currentMatrix = FilterUtils.createAdjustmentMatrix(
         brightness: _brightness,
         contrast: _contrast,
+        saturation: 0.0,
         warmth: _warmth,
       );
     });

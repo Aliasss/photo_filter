@@ -160,16 +160,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
           child: ClipRRect(
             borderRadius: BorderRadius.circular(12),
             child: ColorFiltered(
-              colorFilter: ColorFilter.matrix(
-                _selectedFilterIndex >= 0
-                    ? FilterUtils.getMatrixForFilter(FilterCategory.categories[_selectedCategoryIndex].filters[_selectedFilterIndex])
-                    : [
-                        1.0, 0.0, 0.0, 0.0, 0.0,
-                        0.0, 1.0, 0.0, 0.0, 0.0,
-                        0.0, 0.0, 1.0, 0.0, 0.0,
-                        0.0, 0.0, 0.0, 1.0, 0.0,
-                      ],
-              ),
+              colorFilter: ColorFilter.matrix(_currentMatrix),
               child: kIsWeb
                   ? Image.memory(
                       _originalImage,
@@ -250,16 +241,28 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
             scrollDirection: Axis.horizontal,
             itemCount: category.filters.length,
             itemBuilder: (context, index) {
+              final filterName = category.filters[index];
               return FilterOptionCard(
-                filter: FilterOption(
-                  name: category.filters[index],
-                  category: category.name,
-                  adjustments: {'brightness': 0, 'contrast': 0, 'warmth': 0},
-                ),
+                filter: FilterOption.fromPreset(filterName, category.name),
                 isSelected: index == _selectedFilterIndex,
                 onTap: () {
-                  _applyFilter(index);
-                  HapticFeedback.lightImpact();
+                  print('필터 선택: $filterName'); // 디버그용
+                  setState(() {
+                    _selectedFilterIndex = index == _selectedFilterIndex ? -1 : index;
+                    if (_selectedFilterIndex != -1) {
+                      _currentMatrix = FilterUtils.getMatrixForFilter(filterName);
+                      print('필터 매트릭스 적용됨: $_currentMatrix'); // 디버그용
+                    } else {
+                      // 필터 해제 시 기본 매트릭스로 복원
+                      _currentMatrix = [
+                        1.0, 0.0, 0.0, 0.0, 0.0,
+                        0.0, 1.0, 0.0, 0.0, 0.0,
+                        0.0, 0.0, 1.0, 0.0, 0.0,
+                        0.0, 0.0, 0.0, 1.0, 0.0,
+                      ];
+                      print('기본 매트릭스로 복원됨'); // 디버그용
+                    }
+                  });
                 },
               );
             },
@@ -553,28 +556,5 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
         ),
       ),
     );
-  }
-
-  // 필터 적용 함수
-  void _applyFilter(int filterIndex) {
-    if (_originalImage == null) return;
-
-    setState(() {
-      _selectedFilterIndex = filterIndex == _selectedFilterIndex ? -1 : filterIndex;
-      
-      if (_selectedFilterIndex >= 0) {
-        final filterName = FilterCategory.categories[_selectedCategoryIndex]
-            .filters[_selectedFilterIndex];
-        _currentMatrix = FilterUtils.getMatrixForFilter(filterName);
-      } else {
-        // 필터 해제 시 기본 매트릭스로 복원
-        _currentMatrix = [
-          1.0, 0.0, 0.0, 0.0, 0.0,
-          0.0, 1.0, 0.0, 0.0, 0.0,
-          0.0, 0.0, 1.0, 0.0, 0.0,
-          0.0, 0.0, 0.0, 1.0, 0.0,
-        ];
-      }
-    });
   }
 } 

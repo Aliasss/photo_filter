@@ -2,108 +2,158 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
 class FilterUtils {
-  // 필터별 기본 값 정의
-  static Map<String, Map<String, double>> filterPresets = {
-    // 매장 카테고리
-    'modern_black': {'brightness': -0.1, 'contrast': 0.2, 'warmth': -0.05},
-    'warm_wood': {'brightness': 0.05, 'contrast': 0.0, 'warmth': 0.15},
-    'minimal': {'brightness': 0.1, 'contrast': -0.05, 'warmth': 0.0},
-    
+  // 필터별 ColorMatrix 정의
+  static Map<String, List<double>> filterMatrices = {
     // 음식 카테고리
-    'delicious': {'brightness': 0.05, 'contrast': 0.1, 'warmth': 0.1},
-    'vivid': {'brightness': 0.0, 'contrast': 0.15, 'warmth': 0.05},
-    
+    '카페 무드': [
+      1.2, 0.1, 0.0, 0.0, 10,
+      0.0, 1.1, 0.1, 0.0, 5,
+      0.0, 0.0, 0.8, 0.0, 0,
+      0.0, 0.0, 0.0, 1.0, 0.0
+    ],
+    '홈메이드 감성': [
+      1.1, 0.2, 0.1, 0.0, 15,
+      0.1, 1.0, 0.1, 0.0, 10,
+      0.1, 0.1, 0.9, 0.0, 5,
+      0.0, 0.0, 0.0, 1.0, 0.0
+    ],
+    '소프트 파스텔': [
+      1.0, 0.1, 0.1, 0.0, 20,
+      0.1, 1.0, 0.1, 0.0, 15,
+      0.1, 0.1, 1.0, 0.0, 10,
+      0.0, 0.0, 0.0, 1.0, 0.0
+    ],
+    '비비드 컬러': [
+      1.3, 0.0, 0.0, 0.0, 0,
+      0.0, 1.3, 0.0, 0.0, 0,
+      0.0, 0.0, 1.3, 0.0, 0,
+      0.0, 0.0, 0.0, 1.0, 0.0
+    ],
+    '미니멀 그레이': [
+      0.5, 0.5, 0.5, 0.0, 0,
+      0.5, 0.5, 0.5, 0.0, 0,
+      0.5, 0.5, 0.5, 0.0, 0,
+      0.0, 0.0, 0.0, 1.0, 0.0
+    ],
+    // 매장 카테고리
+    '모던 블랙': [
+      1.0, 0.0, 0.0, 0.0, -10,
+      0.0, 1.0, 0.0, 0.0, -10,
+      0.0, 0.0, 1.0, 0.0, -10,
+      0.0, 0.0, 0.0, 1.0, 0.0
+    ],
+    '웜 우드': [
+      1.1, 0.1, 0.0, 0.0, 5,
+      0.0, 1.0, 0.1, 0.0, 5,
+      0.0, 0.0, 0.9, 0.0, 0,
+      0.0, 0.0, 0.0, 1.0, 0.0
+    ],
+    '미니멀': [
+      0.9, 0.05, 0.05, 0.0, 10,
+      0.05, 0.9, 0.05, 0.0, 10,
+      0.05, 0.05, 0.9, 0.0, 10,
+      0.0, 0.0, 0.0, 1.0, 0.0
+    ],
     // 제품 카테고리
-    'luxury': {'brightness': -0.05, 'contrast': 0.1, 'warmth': -0.1},
-    'clean': {'brightness': 0.15, 'contrast': 0.0, 'warmth': -0.05},
-    
+    '럭셔리': [
+      1.1, 0.0, 0.0, 0.0, -5,
+      0.0, 1.1, 0.0, 0.0, -5,
+      0.0, 0.0, 1.2, 0.0, -10,
+      0.0, 0.0, 0.0, 1.0, 0.0
+    ],
+    '클린': [
+      0.95, 0.0, 0.0, 0.0, 15,
+      0.0, 0.95, 0.0, 0.0, 15,
+      0.0, 0.0, 1.0, 0.0, -5,
+      0.0, 0.0, 0.0, 1.0, 0.0
+    ],
     // 패션 카테고리
-    'trendy': {'brightness': 0.0, 'contrast': 0.05, 'warmth': 0.05},
-    'vintage': {'brightness': -0.05, 'contrast': -0.05, 'warmth': 0.2},
+    '트렌디': [
+      1.05, 0.0, 0.0, 0.0, 0,
+      0.0, 1.05, 0.0, 0.0, 5,
+      0.0, 0.0, 1.05, 0.0, 5,
+      0.0, 0.0, 0.0, 1.0, 0.0
+    ],
+    '빈티지': [
+      0.8, 0.3, 0.2, 0.0, -5,
+      0.3, 0.7, 0.1, 0.0, -5,
+      0.2, 0.1, 0.6, 0.0, 20,
+      0.0, 0.0, 0.0, 1.0, 0.0
+    ],
   };
 
-  // 필터별 ColorMatrix 생성
+  // 필터별 ColorMatrix 가져오기
   static List<double> getMatrixForFilter(String filterName) {
-    final preset = filterPresets[filterName] ?? 
-      {'brightness': 0.0, 'contrast': 0.0, 'warmth': 0.0};
-    
-    return createAdjustmentMatrix(
-      brightness: preset['brightness']!,
-      contrast: preset['contrast']!,
-      warmth: preset['warmth']!,
-    );
+    print('필터 매트릭스 요청: $filterName'); // 디버그용
+    final matrix = filterMatrices[filterName] ?? [
+      1.0, 0.0, 0.0, 0.0, 0.0,
+      0.0, 1.0, 0.0, 0.0, 0.0,
+      0.0, 0.0, 1.0, 0.0, 0.0,
+      0.0, 0.0, 0.0, 1.0, 0.0,
+    ];
+    print('적용된 매트릭스: $matrix'); // 디버그용
+    return matrix;
+  }
+
+  // 필터별 조정값 가져오기
+  static Map<String, int> getFilterValues(String filterName) {
+    switch (filterName) {
+      case '카페 무드':
+        return {'밝기': 10, '대비': 10, '따뜻함': 5};
+      case '홈메이드 감성':
+        return {'밝기': 15, '대비': 5, '따뜻함': 10};
+      case '소프트 파스텔':
+        return {'밝기': 20, '대비': 0, '따뜻함': 15};
+      case '비비드 컬러':
+        return {'밝기': 0, '대비': 30, '따뜻함': 0};
+      case '미니멀 그레이':
+        return {'밝기': 0, '대비': -50, '따뜻함': 0};
+      case '모던 블랙':
+        return {'밝기': -10, '대비': 20, '따뜻함': -5};
+      case '웜 우드':
+        return {'밝기': 5, '대비': 0, '따뜻함': 15};
+      case '미니멀':
+        return {'밝기': 10, '대비': -10, '따뜻함': 0};
+      case '럭셔리':
+        return {'밝기': -5, '대비': 10, '따뜻함': -10};
+      case '클린':
+        return {'밝기': 15, '대비': -5, '따뜻함': -5};
+      case '트렌디':
+        return {'밝기': 0, '대비': 5, '따뜻함': 5};
+      case '빈티지':
+        return {'밝기': -5, '대비': -10, '따뜻함': 20};
+      default:
+        return {'밝기': 0, '대비': 0, '따뜻함': 0};
+    }
+  }
+
+  // 필터 이름으로 기본값 가져오기
+  static Map<String, double> getFilterPreset(String filterName) {
+    final values = getFilterValues(filterName);
+    return {
+      'brightness': values['밝기']! / 100.0,
+      'contrast': values['대비']! / 100.0,
+      'warmth': values['따뜻함']! / 100.0,
+    };
   }
 
   // 조정값으로 ColorMatrix 생성
   static List<double> createAdjustmentMatrix({
     required double brightness,
     required double contrast,
+    required double saturation,
     required double warmth,
   }) {
-    // 기본 행렬 (단위 행렬)
-    List<double> matrix = [
-      1.0, 0.0, 0.0, 0.0, 0.0,
-      0.0, 1.0, 0.0, 0.0, 0.0,
-      0.0, 0.0, 1.0, 0.0, 0.0,
-      0.0, 0.0, 0.0, 1.0, 0.0,
-    ];
-
-    // 밝기 조정
-    List<double> brightnessMatrix = [
-      1.0, 0.0, 0.0, 0.0, brightness,
-      0.0, 1.0, 0.0, 0.0, brightness,
-      0.0, 0.0, 1.0, 0.0, brightness,
-      0.0, 0.0, 0.0, 1.0, 0.0,
-    ];
-
-    // 대비 조정
-    double contrastFactor = 1.0 + contrast;
-    List<double> contrastMatrix = [
-      contrastFactor, 0.0, 0.0, 0.0, 0.0,
-      0.0, contrastFactor, 0.0, 0.0, 0.0,
-      0.0, 0.0, contrastFactor, 0.0, 0.0,
-      0.0, 0.0, 0.0, 1.0, 0.0,
-    ];
-
-    // 따뜻함 조정 (RGB 채널 조정)
-    List<double> warmthMatrix = [
-      1.0 + warmth, 0.0, 0.0, 0.0, 0.0,
-      0.0, 1.0, 0.0, 0.0, 0.0,
-      0.0, 0.0, 1.0 - warmth, 0.0, 0.0,
-      0.0, 0.0, 0.0, 1.0, 0.0,
-    ];
-
-    // 행렬 곱셈으로 모든 효과 결합
-    matrix = multiplyMatrices(matrix, brightnessMatrix);
-    matrix = multiplyMatrices(matrix, contrastMatrix);
-    matrix = multiplyMatrices(matrix, warmthMatrix);
-
-    return matrix;
-  }
-
-  // 행렬 곱셈 함수
-  static List<double> multiplyMatrices(List<double> a, List<double> b) {
-    List<double> result = List<double>.filled(20, 0.0);
+    double b = brightness / 100.0;
+    double c = (contrast + 100.0) / 100.0;
+    double s = (saturation + 100.0) / 100.0;
+    double w = warmth / 100.0;
     
-    for (int i = 0; i < 4; i++) {
-      for (int j = 0; j < 5; j++) {
-        double sum = 0.0;
-        for (int k = 0; k < 4; k++) {
-          sum += a[i * 5 + k] * b[k * 5 + j];
-        }
-        if (j == 4) {
-          sum += a[i * 5 + 4];
-        }
-        result[i * 5 + j] = sum;
-      }
-    }
-    
-    return result;
-  }
-
-  // 필터 이름으로 기본값 가져오기
-  static Map<String, double> getFilterPreset(String filterName) {
-    return filterPresets[filterName] ?? 
-      {'brightness': 0.0, 'contrast': 0.0, 'warmth': 0.0};
+    return [
+      c * s, 0, 0, 0, b + w,
+      0, c * s, 0, 0, b,
+      0, 0, c * s, 0, b - w,
+      0, 0, 0, 1, 0,
+    ];
   }
 } 

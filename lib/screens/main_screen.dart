@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -22,7 +23,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   int _selectedCategoryIndex = 0;
   int _selectedNavIndex = 0;
   int _selectedFilterIndex = -1;
-  File? _selectedImage;
+  dynamic _selectedImage; // File 또는 Uint8List
   bool _isUploading = false;
   
   late AnimationController _fadeController;
@@ -120,12 +121,6 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
             color: AppColors.borderDashed,
             width: 2,
           ),
-          image: _selectedImage != null 
-            ? DecorationImage(
-                image: FileImage(_selectedImage!),
-                fit: BoxFit.cover,
-              ) 
-            : null,
         ),
         child: _selectedImage == null 
           ? Column(
@@ -161,6 +156,22 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
             )
           : Stack(
               children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: kIsWeb
+                    ? Image.memory(
+                        _selectedImage,
+                        width: double.infinity,
+                        height: 280,
+                        fit: BoxFit.cover,
+                      )
+                    : Image.file(
+                        _selectedImage,
+                        width: double.infinity,
+                        height: 280,
+                        fit: BoxFit.cover,
+                      ),
+                ),
                 Positioned(
                   top: 12,
                   right: 12,
@@ -433,15 +444,20 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     try {
       final XFile? image = await _picker.pickImage(source: source);
       if (image != null) {
-        setState(() {
-          if (kIsWeb) {
-            // 웹에서는 XFile을 직접 사용
+        if (kIsWeb) {
+          // 웹에서는 Uint8List로 처리
+          final Uint8List bytes = await image.readAsBytes();
+          setState(() {
+            _selectedImage = bytes;
+            _isUploading = false;
+          });
+        } else {
+          // 모바일에서는 File 객체 사용
+          setState(() {
             _selectedImage = File(image.path);
-          } else {
-            _selectedImage = File(image.path);
-          }
-          _isUploading = false;
-        });
+            _isUploading = false;
+          });
+        }
       }
     } catch (e) {
       setState(() {
@@ -471,12 +487,19 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
               const SizedBox(height: 16),
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: Image.file(
-                  _selectedImage!,
-                  height: 200,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                ),
+                child: kIsWeb
+                  ? Image.memory(
+                      _selectedImage,
+                      height: 200,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                    )
+                  : Image.file(
+                      _selectedImage,
+                      height: 200,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                    ),
               ),
               const SizedBox(height: 16),
               if (_selectedFilterIndex >= 0) ...[
@@ -503,7 +526,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
       context,
       MaterialPageRoute(
         builder: (context) => EditScreen(
-          image: _selectedImage!,
+          image: _selectedImage,
           selectedFilter: _selectedFilterIndex >= 0 
             ? FilterCategory.categories[_selectedCategoryIndex].filters[_selectedFilterIndex]
             : null,

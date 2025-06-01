@@ -115,109 +115,93 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   }
   
   Widget _buildPhotoPreview() {
-    return GestureDetector(
-      onTap: _showImageSourceDialog,
-      child: Container(
-        width: double.infinity,
-        height: 280,
-        decoration: BoxDecoration(
-          gradient: _originalImage == null 
-            ? const LinearGradient(
-                colors: [Color(0xFFF3F4F6), Color(0xFFE5E7EB)],
-              )
-            : null,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: AppColors.borderDashed,
-            width: 2,
+    if (_originalImage == null) {
+      return GestureDetector(
+        onTap: _showImageSourceDialog,
+        child: Container(
+          width: double.infinity,
+          height: 300,
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.add_photo_alternate_outlined,
+                size: 48,
+                color: AppColors.textSecondary,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                '사진을 업로드하세요',
+                style: AppTextStyles.categoryDesc.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
           ),
         ),
-        child: _originalImage == null 
-          ? Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                if (_isUploading)
-                  const CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
-                  )
-                else ...[
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: const BoxDecoration(
-                      color: AppColors.primary,
-                      shape: BoxShape.circle,
+      );
+    }
+
+    return Stack(
+      children: [
+        Container(
+          width: double.infinity,
+          height: 300,
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: ColorFiltered(
+              colorFilter: ColorFilter.matrix(
+                _selectedFilterIndex >= 0
+                    ? FilterUtils.getMatrixForFilter(FilterCategory.categories[_selectedCategoryIndex].filters[_selectedFilterIndex])
+                    : [
+                        1.0, 0.0, 0.0, 0.0, 0.0,
+                        0.0, 1.0, 0.0, 0.0, 0.0,
+                        0.0, 0.0, 1.0, 0.0, 0.0,
+                        0.0, 0.0, 0.0, 1.0, 0.0,
+                      ],
+              ),
+              child: kIsWeb
+                  ? Image.memory(
+                      _originalImage,
+                      fit: BoxFit.cover,
+                    )
+                  : Image.file(
+                      _originalImage,
+                      fit: BoxFit.cover,
                     ),
-                    child: const Icon(Icons.add, color: Colors.white, size: 24),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    '사진을 업로드하세요',
-                    style: AppTextStyles.categoryDesc.copyWith(fontSize: 16),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '탭하여 갤러리에서 선택하거나 카메라로 촬영',
-                    style: AppTextStyles.categoryDesc.copyWith(fontSize: 12),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ],
-            )
-          : Stack(
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: ColorFiltered(
-                    colorFilter: ColorFilter.matrix(_currentMatrix),
-                    child: kIsWeb
-                      ? Image.memory(
-                          _originalImage,
-                          width: double.infinity,
-                          height: 280,
-                          fit: BoxFit.cover,
-                        )
-                      : Image.file(
-                          _originalImage,
-                          width: double.infinity,
-                          height: 280,
-                          fit: BoxFit.cover,
-                        ),
-                  ),
-                ),
-                Positioned(
-                  top: 12,
-                  right: 12,
-                  child: GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _originalImage = null;
-                        _selectedFilterIndex = -1;
-                        _currentMatrix = [
-                          1.0, 0.0, 0.0, 0.0, 0.0,
-                          0.0, 1.0, 0.0, 0.0, 0.0,
-                          0.0, 0.0, 1.0, 0.0, 0.0,
-                          0.0, 0.0, 0.0, 1.0, 0.0,
-                        ];
-                      });
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.6),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.close,
-                        color: Colors.white,
-                        size: 16,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
             ),
-      ),
+          ),
+        ),
+        Positioned(
+          top: 8,
+          right: 8,
+          child: IconButton(
+            icon: const Icon(Icons.close, color: Colors.white),
+            onPressed: () {
+              setState(() {
+                _originalImage = null;
+                _selectedFilterIndex = -1;
+                _currentMatrix = [
+                  1.0, 0.0, 0.0, 0.0, 0.0,
+                  0.0, 1.0, 0.0, 0.0, 0.0,
+                  0.0, 0.0, 1.0, 0.0, 0.0,
+                  0.0, 0.0, 0.0, 1.0, 0.0,
+                ];
+              });
+            },
+          ),
+        ),
+      ],
     );
   }
   

@@ -1,10 +1,13 @@
 import 'dart:io';
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 // import 'dart:html' as html;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/rendering.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:image/image.dart' as img;
 import '../constants/colors.dart';
 import '../constants/text_styles.dart';
 import '../models/filter_category.dart';
@@ -29,11 +32,13 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   dynamic _originalImage; // 원본 이미지 (File 또는 Uint8List)
   List<double> _currentMatrix = []; // 현재 적용된 필터 매트릭스
   bool _isUploading = false;
+  bool _isSavingFromPreview = false; // 미리보기에서 저장 중 상태
   
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
   
   final ImagePicker _picker = ImagePicker();
+  final GlobalKey _previewKey = GlobalKey(); // RepaintBoundary 키
   
   @override
   void initState() {
@@ -507,23 +512,26 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
             children: [
               Text('미리보기', style: AppTextStyles.sectionTitle),
               const SizedBox(height: 16),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: ColorFiltered(
-                  colorFilter: ColorFilter.matrix(_currentMatrix),
-                  child: kIsWeb
-                    ? Image.memory(
-                        _originalImage,
-                        height: 200,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                      )
-                    : Image.file(
-                        _originalImage,
-                        height: 200,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                      ),
+              RepaintBoundary(
+                key: _previewKey,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: ColorFiltered(
+                    colorFilter: ColorFilter.matrix(_currentMatrix),
+                    child: kIsWeb
+                      ? Image.memory(
+                          _originalImage,
+                          height: 200,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                        )
+                      : Image.file(
+                          _originalImage,
+                          height: 200,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                        ),
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
@@ -534,16 +542,124 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                 ),
                 const SizedBox(height: 8),
               ],
-              const SizedBox(height: 16),
-              CustomButton(
-                text: '닫기',
-                onPressed: () => Navigator.pop(context),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: CustomButton(
+                      text: '저장',
+                      isLoading: _isSavingFromPreview,
+                      onPressed: _isSavingFromPreview ? () {} : () => _saveFilteredImageFromPreview(),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: CustomButton(
+                      text: '닫기',
+                      isOutlined: true,
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
         ),
       ),
     );
+  }
+  
+  Future<Uint8List?> _captureRepaintBoundary() async {
+    try {
+      RenderRepaintBoundary boundary = _previewKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+      ui.Image image = await boundary.toImage(pixelRatio: 3.0);
+      ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      return byteData?.buffer.asUint8List();
+    } catch (e) {
+      print('RepaintBoundary 캡처 오류: $e');
+      return null;
+    }
+  }
+  
+  Future<void> _saveFilteredImageFromPreview() async {
+    if (_originalImage == null) return;
+
+    setState(() {
+      _isSavingFromPreview = true;
+    });
+
+    try {
+      Uint8List? finalImageBytes;
+      
+      if (_selectedFilterIndex >= 0 && _currentMatrix.isNotEmpty) {
+        // 필터가 선택된 경우 RepaintBoundary에서 캡처
+        finalImageBytes = await _captureRepaintBoundary();
+        print('필터 적용된 이미지 캡처 완료: ${FilterCategory.categories[_selectedCategoryIndex].filters[_selectedFilterIndex]}');
+      } else {
+        // 필터가 선택되지 않은 경우 원본 저장
+        if (_originalImage is File) {
+          final File file = _originalImage as File;
+          finalImageBytes = await file.readAsBytes();
+        } else {
+          finalImageBytes = _originalImage as Uint8List;
+        }
+        print('원본 이미지 저장');
+      }
+
+      if (finalImageBytes == null) {
+        throw Exception('이미지 처리 실패');
+      }
+
+      final String fileName = 'filtered_photo_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      
+      final result = await ImageGallerySaver.saveImage(
+        finalImageBytes,
+        name: fileName,
+        quality: 90,
+      );
+
+      if (result['isSuccess'] == true || result['isSuccess'] == 1) {
+        // 다이얼로그 닫기
+        Navigator.pop(context);
+        
+        // 성공 메시지 표시
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 8),
+                Text('갤러리에 저장되었습니다.'),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      } else {
+        throw Exception('이미지 저장 실패');
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.error, color: Colors.white),
+              const SizedBox(width: 8),
+              Expanded(child: Text('저장 중 오류가 발생했습니다: ${e.toString()}')),
+            ],
+          ),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      setState(() {
+        _isSavingFromPreview = false;
+      });
+    }
   }
   
   void _navigateToEditScreen() {

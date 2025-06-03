@@ -11,7 +11,7 @@ class BusinessPhotoApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: '비즈니스 포토',
+      title: '브랜딧',
       theme: ThemeData(
         primaryColor: AppColors.primary,
         colorScheme: ColorScheme.fromSeed(

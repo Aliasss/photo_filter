@@ -60,9 +60,9 @@ class _MainScreenState extends State<MainScreen> {
       padding: const EdgeInsets.all(20),
       child: Column(
         children: [
-          Text('비즈니스 포토', style: AppTextStyles.headerTitle),
+          Text('브랜딧', style: AppTextStyles.headerTitle),
           const SizedBox(height: 8),
-          Text('매장용 사진을 프로처럼 편집하세요', style: AppTextStyles.headerSubtitle),
+          Text('브랜드 사진을 쉽고 빠르게 개선해보세요', style: AppTextStyles.headerSubtitle),
         ],
       ),
     );

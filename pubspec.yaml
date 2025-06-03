@@ -1,5 +1,5 @@
-name: photo_filter
-description: "A new Flutter project."
+name: brandit
+description: "브랜딧 - 소상공인을 위한 프로페셔널 사진 필터 앱"
 publish_to: 'none'
 version: 1.0.0+1
 

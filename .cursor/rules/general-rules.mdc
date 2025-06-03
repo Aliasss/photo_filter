@@ -291,3 +291,176 @@ refactor: 상태 관리 로직 개선
 ```
 
 이 가이드를 참고하여 **기존 UI/UX 구조를 절대 변경하지 않으면서** 체계적이고 일관성 있는 코드를 작성해주세요!
+
+## 🛡️ 사용자 데이터 보존 규칙 (플레이스토어 배포 후 필수 준수)
+
+### 🚨 앱 업데이트 시 데이터 손실 방지 - 절대 위반 금지
+
+#### ⚠️ 데이터 손실 위험 상황 (피해야 할 것들)
+
+| 위험 행동 | 결과 | 해결책 |
+|----------|------|--------|
+| **패키지명 변경** | ❌ 데이터 손실 | `com.brandit.photofilter` 절대 변경 금지 |
+| **저장 키 변경** | ❌ 데이터 손실 | `'filter_presets'` 키 유지 |
+| **JSON 구조 완전 변경** | ❌ 파싱 오류 | 하위 호환성 유지 |
+| **SharedPreferences 키 수정** | ❌ 기존 데이터 접근 불가 | 기존 키 값 보존 |
+| **데이터 모델 필드 제거** | ❌ 역직렬화 실패 | 필드 추가만 허용, 삭제 금지 |
+
+#### 🔒 데이터 보존 필수 준수 사항
+
+##### 1. **패키지명 보존 (최우선)**
+```gradle
+// android/app/build.gradle
+applicationId "com.brandit.photofilter" // 절대 변경 금지
+```
+
+##### 2. **저장 키 보존**
+```dart
+// lib/utils/favorites_storage.dart
+static const String _key = 'filter_presets'; // 절대 변경 금지
+```
+
+##### 3. **JSON 모델 하위 호환성 보장**
+```dart
+// 새 필드 추가 시 (올바른 방법)
+factory FilterPreset.fromJson(Map<String, dynamic> json) {
+  return FilterPreset(
+    // 기존 필드들 유지
+    id: json['id'],
+    name: json['name'],
+    brightness: json['brightness']?.toDouble() ?? 0.0,
+    // 새 필드는 기본값과 함께 추가
+    newField: json['newField'] ?? defaultValue, // ✅ 올바름
+  );
+}
+
+// 기존 필드 제거 (금지된 방법)
+factory FilterPreset.fromJson(Map<String, dynamic> json) {
+  return FilterPreset(
+    // brightness 필드 제거 ❌ 절대 금지
+    id: json['id'],
+    name: json['name'],
+  );
+}
+```
+
+##### 4. **에러 처리 유지**
+```dart
+// lib/utils/favorites_storage.dart
+Future<List<FilterPreset>> loadPresets() async {
+  try {
+    // 로딩 로직...
+  } catch (e) {
+    print('프리셋 불러오기 오류: $e');
+    return []; // 빈 배열 반환으로 앱 크래시 방지 - 절대 변경 금지
+  }
+}
+```
+
+#### ✅ 안전한 업데이트 방법들
+
+##### 1. **새 기능 추가** (안전)
+- 새로운 필터 카테고리 추가
+- 새로운 편집 도구 추가  
+- UI 개선 및 애니메이션 추가
+- 성능 최적화
+
+##### 2. **데이터 모델 확장** (안전)
+```dart
+// 새 필드 추가 시 안전한 방법
+class FilterPreset {
+  // 기존 필드들 유지
+  final String id;
+  final String name;
+  final double brightness;
+  
+  // 새 필드 추가 (옵션)
+  final String? category; // 새로 추가된 필드
+  final DateTime? lastModified; // 새로 추가된 필드
+  
+  FilterPreset({
+    required this.id,
+    required this.name,
+    required this.brightness,
+    this.category, // 옵션 필드
+    this.lastModified, // 옵션 필드
+  });
+  
+  factory FilterPreset.fromJson(Map<String, dynamic> json) {
+    return FilterPreset(
+      // 기존 필드들 (필수)
+      id: json['id'],
+      name: json['name'], 
+      brightness: json['brightness']?.toDouble() ?? 0.0,
+      // 새 필드들 (옵션, 기본값 제공)
+      category: json['category'], // null 허용
+      lastModified: json['lastModified'] != null 
+          ? DateTime.parse(json['lastModified']) 
+          : null,
+    );
+  }
+}
+```
+
+##### 3. **버전 관리 시스템** (권장)
+```dart
+// 향후 도입 가능한 안전한 마이그레이션 방법
+class FavoritesStorage {
+  static const String _keyVersion = 'data_version';
+  static const int _currentVersion = 2;
+  
+  Future<List<FilterPreset>> loadPresets() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final version = prefs.getInt(_keyVersion) ?? 1;
+      
+      // 점진적 마이그레이션
+      if (version < _currentVersion) {
+        await _migrateData(version, _currentVersion);
+        await prefs.setInt(_keyVersion, _currentVersion);
+      }
+      
+      // 기존 로딩 로직...
+    } catch (e) {
+      return [];
+    }
+  }
+}
+```
+
+#### 🎯 업데이트 전 체크리스트
+
+배포 전 반드시 확인:
+- [ ] 패키지명이 변경되지 않았는가?
+- [ ] SharedPreferences 키가 유지되고 있는가?
+- [ ] 기존 JSON 필드가 모두 보존되어 있는가?
+- [ ] 새 필드에 기본값이 설정되어 있는가?
+- [ ] 에러 처리 로직이 유지되고 있는가?
+- [ ] 기존 사용자 데이터로 테스트해봤는가?
+
+#### 📋 사용자 데이터 보존 테스트 방법
+
+```bash
+# 1. 현재 버전 설치 및 데이터 생성
+flutter run --release
+# 앱에서 프리셋 여러 개 저장
+
+# 2. 앱 종료 후 코드 수정
+
+# 3. 새 버전 빌드 및 설치 (기존 앱 위에 덮어쓰기)
+flutter build apk --release
+# 기존 앱에 새 APK 설치
+
+# 4. 기존 프리셋 데이터 확인
+# 모든 프리셋이 그대로 남아있어야 함
+```
+
+### 🚨 경고: 데이터 손실 시 복구 불가능
+
+플레이스토어에 배포된 후 사용자 데이터가 손실되면:
+- 사용자 신뢰도 급락
+- 앱 평점 하락  
+- 복구 불가능 (서버 백업 없음)
+- 지원 문의 급증
+
+**따라서 위 규칙들을 반드시 준수해야 합니다!** 🛡️

@@ -16,10 +16,28 @@ class AppColors {
   static const Color error = Color(0xFFEF4444);
   
   static const LinearGradient primaryGradient = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [primary, primaryDark],
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [Color(0xFF2196F3), Color(0xFF1E88E5)],
+    stops: [0.0, 1.0],
   );
+  
+  static const LinearGradient subtleGradient = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [Color(0xFF2196F3), Color(0xFF1976D2)],
+  );
+  
+  static const Color glassBackground = Color(0x15FFFFFF);
+  static const Color glassBorder = Color(0x25FFFFFF);
+  static const Color glassShimmer = Color(0x20FFFFFF);
+  
+  static const Color shadowLight = Color(0x08000000);
+  static const Color shadowMedium = Color(0x12000000);
+  static const Color shadowHeavy = Color(0x20000000);
+  
+  static const Color hoverOverlay = Color(0x08000000);
+  static const Color pressedOverlay = Color(0x15000000);
   
   static const List<Color> filterColors = [
     Color(0xFFFBBF24), // 황금
@@ -36,5 +54,41 @@ class AppColors {
     Color(0xFFF59E0B), // Amber
     Color(0xFF8B5CF6), // Purple
     Color(0xFF06B6D4), // Cyan
+  ];
+  
+  static List<BoxShadow> get lightShadow => [
+    BoxShadow(
+      color: shadowLight,
+      blurRadius: 8,
+      spreadRadius: 0,
+      offset: const Offset(0, 2),
+    ),
+  ];
+  
+  static List<BoxShadow> get mediumShadow => [
+    BoxShadow(
+      color: shadowMedium,
+      blurRadius: 16,
+      spreadRadius: 0,
+      offset: const Offset(0, 4),
+    ),
+  ];
+  
+  static List<BoxShadow> get heavyShadow => [
+    BoxShadow(
+      color: shadowMedium,
+      blurRadius: 24,
+      spreadRadius: 0,
+      offset: const Offset(0, 8),
+    ),
+  ];
+  
+  static List<BoxShadow> get glassShadow => [
+    BoxShadow(
+      color: shadowLight,
+      blurRadius: 16,
+      spreadRadius: 0,
+      offset: const Offset(0, 4),
+    ),
   ];
 } 

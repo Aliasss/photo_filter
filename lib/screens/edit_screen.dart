@@ -13,6 +13,7 @@ import '../models/filter_category.dart';
 import '../models/filter_preset.dart';
 import '../utils/filter_utils.dart';
 import '../utils/favorites_storage.dart';
+import '../utils/image_state.dart';
 import '../widgets/custom_button.dart';
 import 'branding_screen.dart';
 
@@ -41,6 +42,7 @@ class _EditScreenState extends State<EditScreen> {
   bool _isSavingPreset = false; // 프리셋 저장 중 상태
   final GlobalKey _imageKey = GlobalKey(); // RepaintBoundary 키
   final FavoritesStorage _favoritesStorage = FavoritesStorage(); // 즐겨찾기 저장소
+  final ImageState _imageState = ImageState(); // 전역 상태 관리
 
   @override
   void initState() {
@@ -76,6 +78,15 @@ class _EditScreenState extends State<EditScreen> {
     setState(() {
       _currentMatrix = _combineMatrices(_baseFilterMatrix, adjustmentMatrix);
     });
+    
+    // 상태 업데이트 - 실시간으로 ImageState에 편집값 반영
+    _imageState.updateAdjustments(
+      brightness: _brightness,
+      contrast: _contrast,
+      saturation: _saturation,
+      warmth: _warmth,
+    );
+    _imageState.updateMatrix(_currentMatrix);
     
     print('최종 매트릭스: $_currentMatrix');
   }
@@ -203,6 +214,18 @@ class _EditScreenState extends State<EditScreen> {
                 )
               : Icon(Icons.save, color: AppColors.primary),
             onPressed: _isSaving ? null : _saveImage,
+          ),
+          // 브랜딩 화면으로 이동 버튼 추가
+          IconButton(
+            icon: Icon(Icons.palette, color: AppColors.primary),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => BrandingScreen(),
+                ),
+              );
+            },
           ),
         ],
       ),

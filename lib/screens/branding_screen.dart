@@ -10,28 +10,20 @@ import 'package:image_gallery_saver/image_gallery_saver.dart';
 import 'package:intl/intl.dart';
 import '../constants/colors.dart';
 import '../constants/text_styles.dart';
+import '../utils/filter_utils.dart';
+import '../utils/image_state.dart';
 import '../widgets/custom_button.dart';
 
 enum LogoPosition { topLeft, topRight, bottomLeft, bottomRight, center }
 
 class BrandingScreen extends StatefulWidget {
-  final dynamic baseImage; // 베이스 이미지 (옵션)
-  final String? selectedFilter; // 적용된 필터 (옵션)
-  
-  const BrandingScreen({
-    Key? key,
-    this.baseImage,
-    this.selectedFilter,
-  }) : super(key: key);
+  const BrandingScreen({Key? key}) : super(key: key);
   
   @override
   _BrandingScreenState createState() => _BrandingScreenState();
 }
 
 class _BrandingScreenState extends State<BrandingScreen> {
-  // 브랜드 컬러 관련
-  int _selectedColorIndex = 0;
-  
   // 로고 관련
   dynamic _logoImage; // File 또는 Uint8List
   LogoPosition _logoPosition = LogoPosition.bottomRight;
@@ -40,6 +32,15 @@ class _BrandingScreenState extends State<BrandingScreen> {
   
   // 베이스 이미지 관련
   dynamic _baseImage; // 메인 이미지
+  List<double> _currentMatrix = []; // 현재 적용된 매트릭스
+  
+  // 편집 관련 (브랜딩 화면에 추가된 편집 기능)
+  double _brightness = 0;
+  double _contrast = 0;
+  double _saturation = 0;
+  double _warmth = 0;
+  String? _selectedFilter;
+  bool _showEditingPanel = false;
   
   // 상태 관리
   bool _isSaving = false;
@@ -48,11 +49,91 @@ class _BrandingScreenState extends State<BrandingScreen> {
   
   final ImagePicker _picker = ImagePicker();
   final GlobalKey _previewKey = GlobalKey(); // RepaintBoundary 키
+  final ImageState _imageState = ImageState(); // 전역 상태 관리
   
   @override
   void initState() {
     super.initState();
-    _baseImage = widget.baseImage;
+    _loadImageFromState();
+  }
+  
+  void _loadImageFromState() {
+    // ImageState에서 편집된 이미지 데이터 가져오기
+    if (_imageState.hasEditedImage) {
+      setState(() {
+        _baseImage = _imageState.currentImage;
+        _selectedFilter = _imageState.selectedFilter;
+        _brightness = _imageState.brightness;
+        _contrast = _imageState.contrast;
+        _saturation = _imageState.saturation;
+        _warmth = _imageState.warmth;
+        _currentMatrix = _imageState.currentMatrix;
+      });
+      print('브랜딩 화면에 편집된 이미지 로드됨: 필터=$_selectedFilter, 밝기=$_brightness');
+    } else {
+      // 기본 매트릭스 설정
+      _currentMatrix = [
+        1.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 1.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 1.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 1.0, 0.0,
+      ];
+    }
+  }
+  
+  void _updateMatrix() {
+    if (_selectedFilter != null) {
+      // 기본 필터 매트릭스
+      List<double> baseMatrix = FilterUtils.getMatrixForFilter(_selectedFilter!);
+      // 편집 효과 매트릭스
+      List<double> adjustmentMatrix = FilterUtils.createAdjustmentMatrix(
+        brightness: _brightness,
+        contrast: _contrast,
+        saturation: _saturation,
+        warmth: _warmth,
+      );
+      // 합성
+      setState(() {
+        _currentMatrix = _combineMatrices(baseMatrix, adjustmentMatrix);
+      });
+    } else {
+      // 필터 없이 편집 효과만
+      setState(() {
+        _currentMatrix = FilterUtils.createAdjustmentMatrix(
+          brightness: _brightness,
+          contrast: _contrast,
+          saturation: _saturation,
+          warmth: _warmth,
+        );
+      });
+    }
+    
+    // 상태 업데이트
+    _imageState.updateAdjustments(
+      brightness: _brightness,
+      contrast: _contrast,
+      saturation: _saturation,
+      warmth: _warmth,
+    );
+    _imageState.updateMatrix(_currentMatrix);
+  }
+  
+  List<double> _combineMatrices(List<double> matrix1, List<double> matrix2) {
+    List<double> result = List.filled(20, 0.0);
+    
+    for (int row = 0; row < 4; row++) {
+      for (int col = 0; col < 5; col++) {
+        if (col < 4) {
+          for (int k = 0; k < 4; k++) {
+            result[row * 5 + col] += matrix1[row * 5 + k] * matrix2[k * 5 + col];
+          }
+        } else {
+          result[row * 5 + col] = matrix1[row * 5 + col] + matrix2[row * 5 + col];
+        }
+      }
+    }
+    
+    return result;
   }
   
   @override
@@ -68,6 +149,19 @@ class _BrandingScreenState extends State<BrandingScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
+          // 편집 패널 토글 버튼
+          if (_baseImage != null)
+            IconButton(
+              icon: Icon(
+                _showEditingPanel ? Icons.palette_outlined : Icons.tune,
+                color: _showEditingPanel ? AppColors.primary : AppColors.textSecondary,
+              ),
+              onPressed: () {
+                setState(() {
+                  _showEditingPanel = !_showEditingPanel;
+                });
+              },
+            ),
           if (_baseImage != null && _logoImage != null)
             IconButton(
               icon: _isSaving
@@ -107,6 +201,11 @@ class _BrandingScreenState extends State<BrandingScreen> {
                       const SizedBox(height: 24),
                       _buildOpacitySection(),
                     ],
+                    // 편집 패널
+                    if (_showEditingPanel) ...[
+                      const SizedBox(height: 24),
+                      _buildEditingSection(),
+                    ],
                   ],
                 ],
               ),
@@ -141,7 +240,9 @@ class _BrandingScreenState extends State<BrandingScreen> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    '브랜딩할 이미지를 선택하세요',
+                    _imageState.hasEditedImage 
+                      ? '편집된 이미지를 불러오는 중...'
+                      : '브랜딩할 이미지를 선택하세요',
                     style: AppTextStyles.categoryDesc.copyWith(
                       color: AppColors.textSecondary,
                     ),
@@ -154,16 +255,19 @@ class _BrandingScreenState extends State<BrandingScreen> {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  // 베이스 이미지
-                  kIsWeb
-                    ? Image.memory(
-                        _baseImage as Uint8List,
-                        fit: BoxFit.cover,
-                      )
-                    : Image.file(
-                        _baseImage as File,
-                        fit: BoxFit.cover,
-                      ),
+                  // 베이스 이미지 (편집 효과 적용)
+                  ColorFiltered(
+                    colorFilter: ColorFilter.matrix(_currentMatrix),
+                    child: kIsWeb
+                      ? Image.memory(
+                          _baseImage as Uint8List,
+                          fit: BoxFit.cover,
+                        )
+                      : Image.file(
+                          _baseImage as File,
+                          fit: BoxFit.cover,
+                        ),
+                  ),
                   
                   // 로고 오버레이
                   if (_logoImage != null)
@@ -252,8 +356,61 @@ class _BrandingScreenState extends State<BrandingScreen> {
       children: [
         Text('베이스 이미지', style: AppTextStyles.sectionTitle),
         const SizedBox(height: 16),
+        if (_imageState.hasEditedImage)
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.edit, color: AppColors.primary),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '편집된 이미지 사용',
+                        style: AppTextStyles.categoryDesc.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      if (_imageState.selectedFilter != null)
+                        Text(
+                          '필터: ${_imageState.selectedFilter}',
+                          style: AppTextStyles.categoryDesc.copyWith(
+                            fontSize: 11,
+                            color: AppColors.primary.withOpacity(0.8),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                CustomButton(
+                  text: '불러오기',
+                  isSmall: true,
+                  onPressed: () {
+                    setState(() {
+                      _baseImage = _imageState.currentImage;
+                      _selectedFilter = _imageState.selectedFilter;
+                      _brightness = _imageState.brightness;
+                      _contrast = _imageState.contrast;
+                      _saturation = _imageState.saturation;
+                      _warmth = _imageState.warmth;
+                      _currentMatrix = _imageState.currentMatrix;
+                    });
+                  },
+                ),
+              ],
+            ),
+          ),
+        const SizedBox(height: 16),
         CustomButton(
-          text: '이미지 선택',
+          text: '새 이미지 선택',
           icon: Icons.photo_library,
           isLoading: _isUploadingBase,
           onPressed: _isUploadingBase ? () {} : () => _pickBaseImage(),
@@ -497,6 +654,155 @@ class _BrandingScreenState extends State<BrandingScreen> {
     );
   }
 
+  Widget _buildEditingSection() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('이미지 편집', style: AppTextStyles.sectionTitle),
+              if (_selectedFilter != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    _selectedFilter!,
+                    style: AppTextStyles.categoryDesc.copyWith(
+                      color: AppColors.primary,
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          _buildAdjustmentSlider(
+            '밝기',
+            _brightness,
+            -100.0,
+            100.0,
+            (value) {
+              setState(() {
+                _brightness = value;
+              });
+              _updateMatrix();
+            },
+          ),
+          const SizedBox(height: 16),
+          _buildAdjustmentSlider(
+            '대비',
+            _contrast,
+            -100.0,
+            100.0,
+            (value) {
+              setState(() {
+                _contrast = value;
+              });
+              _updateMatrix();
+            },
+          ),
+          const SizedBox(height: 16),
+          _buildAdjustmentSlider(
+            '채도',
+            _saturation,
+            -100.0,
+            100.0,
+            (value) {
+              setState(() {
+                _saturation = value;
+              });
+              _updateMatrix();
+            },
+          ),
+          const SizedBox(height: 16),
+          _buildAdjustmentSlider(
+            '따뜻함',
+            _warmth,
+            -100.0,
+            100.0,
+            (value) {
+              setState(() {
+                _warmth = value;
+              });
+              _updateMatrix();
+            },
+          ),
+          const SizedBox(height: 20),
+          CustomButton(
+            text: '편집 초기화',
+            isOutlined: true,
+            icon: Icons.refresh,
+            onPressed: () {
+              setState(() {
+                _brightness = 0;
+                _contrast = 0;
+                _saturation = 0;
+                _warmth = 0;
+              });
+              _updateMatrix();
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAdjustmentSlider(
+    String label,
+    double value,
+    double min,
+    double max,
+    ValueChanged<double> onChanged,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(label, style: AppTextStyles.categoryDesc),
+            Text(
+              '${value.round()}',
+              style: AppTextStyles.categoryDesc.copyWith(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        SliderTheme(
+          data: SliderThemeData(
+            activeTrackColor: AppColors.primary,
+            inactiveTrackColor: AppColors.border,
+            thumbColor: AppColors.primary,
+            overlayColor: AppColors.primary.withOpacity(0.1),
+            trackHeight: 3,
+            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
+            overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
+          ),
+          child: Slider(
+            value: value,
+            min: min,
+            max: max,
+            onChanged: onChanged,
+          ),
+        ),
+      ],
+    );
+  }
+
   Future<void> _pickBaseImage() async {
     setState(() {
       _isUploadingBase = true;
@@ -509,11 +815,55 @@ class _BrandingScreenState extends State<BrandingScreen> {
           final Uint8List bytes = await image.readAsBytes();
           setState(() {
             _baseImage = bytes;
+            // 새 이미지 선택 시 편집값 초기화
+            _brightness = 0;
+            _contrast = 0;
+            _saturation = 0;
+            _warmth = 0;
+            _selectedFilter = null;
+            _currentMatrix = [
+              1.0, 0.0, 0.0, 0.0, 0.0,
+              0.0, 1.0, 0.0, 0.0, 0.0,
+              0.0, 0.0, 1.0, 0.0, 0.0,
+              0.0, 0.0, 0.0, 1.0, 0.0,
+            ];
           });
+          // 상태 업데이트
+          _imageState.updateImage(bytes);
+          _imageState.updateFilter(null);
+          _imageState.updateAdjustments(
+            brightness: 0,
+            contrast: 0,
+            saturation: 0,
+            warmth: 0,
+          );
+          _imageState.updateMatrix(_currentMatrix);
         } else {
           setState(() {
             _baseImage = File(image.path);
+            // 새 이미지 선택 시 편집값 초기화
+            _brightness = 0;
+            _contrast = 0;
+            _saturation = 0;
+            _warmth = 0;
+            _selectedFilter = null;
+            _currentMatrix = [
+              1.0, 0.0, 0.0, 0.0, 0.0,
+              0.0, 1.0, 0.0, 0.0, 0.0,
+              0.0, 0.0, 1.0, 0.0, 0.0,
+              0.0, 0.0, 0.0, 1.0, 0.0,
+            ];
           });
+          // 상태 업데이트
+          _imageState.updateImage(File(image.path));
+          _imageState.updateFilter(null);
+          _imageState.updateAdjustments(
+            brightness: 0,
+            contrast: 0,
+            saturation: 0,
+            warmth: 0,
+          );
+          _imageState.updateMatrix(_currentMatrix);
         }
       }
     } catch (e) {

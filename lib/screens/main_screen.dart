@@ -15,13 +15,13 @@ import '../models/filter_option.dart';
 import '../models/filter_preset.dart';
 import '../utils/filter_utils.dart';
 import '../utils/favorites_storage.dart';
+import '../utils/image_state.dart';
 import '../widgets/category_card.dart';
 import '../widgets/custom_button.dart';
 import '../widgets/filter_option_card.dart';
 import 'edit_screen.dart';
 import 'branding_screen.dart';
 import 'favorites_screen.dart';
-import 'templates_screen.dart';
 import 'package:image_gallery_saver/image_gallery_saver.dart';
 
 class MainScreen extends StatefulWidget {
@@ -43,6 +43,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   
   final ImagePicker _picker = ImagePicker();
   final GlobalKey _previewKey = GlobalKey(); // RepaintBoundary 키
+  final ImageState _imageState = ImageState(); // 전역 상태 관리
   
   @override
   void initState() {
@@ -114,12 +115,30 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
       decoration: const BoxDecoration(
         gradient: AppColors.primaryGradient,
       ),
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       child: Column(
         children: [
-          Text('브랜딧', style: AppTextStyles.headerTitle),
+          Text('브랜딧', style: AppTextStyles.headerTitle.copyWith(
+            fontSize: 28,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.8,
+          )),
           const SizedBox(height: 8),
-          Text('브랜드 사진을 쉽고 빠르게 개선해보세요', style: AppTextStyles.headerSubtitle),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.white.withOpacity(0.3)),
+            ),
+            child: Text(
+              '당신의 사진이 브랜드가 되는 순간', 
+              style: AppTextStyles.headerSubtitle.copyWith(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -131,25 +150,44 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
         onTap: _showImageSourceDialog,
         child: Container(
           width: double.infinity,
-          height: 300,
+          height: 280,
           decoration: BoxDecoration(
             color: AppColors.surface,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.border),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppColors.border.withOpacity(0.3), width: 1.5),
+            boxShadow: AppColors.lightShadow,
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                Icons.add_photo_alternate_outlined,
-                size: 48,
-                color: AppColors.textSecondary,
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.primary.withOpacity(0.2)),
+                ),
+                child: Icon(
+                  Icons.add_photo_alternate_outlined,
+                  size: 48,
+                  color: AppColors.primary,
+                ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
               Text(
                 '사진을 업로드하세요',
                 style: AppTextStyles.categoryDesc.copyWith(
+                  color: AppColors.textPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                '카메라로 촬영하거나 갤러리에서 선택하세요',
+                style: AppTextStyles.categoryDesc.copyWith(
                   color: AppColors.textSecondary,
+                  fontSize: 13,
                 ),
               ),
             ],
@@ -162,14 +200,14 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
       children: [
         Container(
           width: double.infinity,
-          height: 300,
+          height: 280,
           decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.border),
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: AppColors.mediumShadow,
+            border: Border.all(color: AppColors.border.withOpacity(0.3), width: 1.5),
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(19),
             child: ColorFiltered(
               colorFilter: ColorFilter.matrix(_currentMatrix),
               child: kIsWeb
@@ -185,22 +223,31 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
           ),
         ),
         Positioned(
-          top: 8,
-          right: 8,
-          child: IconButton(
-            icon: const Icon(Icons.close, color: Colors.white),
-            onPressed: () {
-              setState(() {
-                _originalImage = null;
-                _selectedFilterIndex = -1;
-                _currentMatrix = [
-                  1.0, 0.0, 0.0, 0.0, 0.0,
-                  0.0, 1.0, 0.0, 0.0, 0.0,
-                  0.0, 0.0, 1.0, 0.0, 0.0,
-                  0.0, 0.0, 0.0, 1.0, 0.0,
-                ];
-              });
-            },
+          top: 12,
+          right: 12,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.6),
+              borderRadius: BorderRadius.circular(8),
+              boxShadow: AppColors.lightShadow,
+            ),
+            child: IconButton(
+              icon: Icon(Icons.close, color: Colors.white, size: 20),
+              onPressed: () {
+                setState(() {
+                  _originalImage = null;
+                  _selectedFilterIndex = -1;
+                  _currentMatrix = [
+                    1.0, 0.0, 0.0, 0.0, 0.0,
+                    0.0, 1.0, 0.0, 0.0, 0.0,
+                    0.0, 0.0, 1.0, 0.0, 0.0,
+                    0.0, 0.0, 0.0, 1.0, 0.0,
+                  ];
+                });
+                // 상태 초기화
+                _imageState.reset();
+              },
+            ),
           ),
         ),
       ],
@@ -211,16 +258,26 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('카테고리별 필터', style: AppTextStyles.sectionTitle),
-        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Text(
+            '카테고리별 필터', 
+            style: AppTextStyles.sectionTitle.copyWith(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.3,
+            ),
+          ),
+        ),
+        const SizedBox(height: 14),
         GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 2,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: 1.5,
+            crossAxisSpacing: 14,
+            mainAxisSpacing: 14,
+            childAspectRatio: 1.1,
           ),
           itemCount: FilterCategory.categories.length,
           itemBuilder: (context, index) {
@@ -232,6 +289,8 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                   _selectedCategoryIndex = index;
                   _selectedFilterIndex = -1;
                 });
+                // 필터 선택 초기화 시 상태 업데이트
+                _imageState.updateFilter(null);
               },
             );
           },
@@ -244,37 +303,77 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('${category.name} 전용 필터', style: AppTextStyles.sectionTitle),
-        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Row(
+            children: [
+              Text(
+                '${category.name} 전용 필터', 
+                style: AppTextStyles.sectionTitle.copyWith(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.3,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '${category.filters.length}개',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
         SizedBox(
-          height: 80,
+          height: 100,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 4),
             itemCount: category.filters.length,
             itemBuilder: (context, index) {
               final filterName = category.filters[index];
-              return FilterOptionCard(
-                filter: FilterOption.fromPreset(filterName, category.name),
-                isSelected: index == _selectedFilterIndex,
-                onTap: () {
-                  print('필터 선택: $filterName'); // 디버그용
-                  setState(() {
-                    _selectedFilterIndex = index == _selectedFilterIndex ? -1 : index;
-                    if (_selectedFilterIndex != -1) {
-                      _currentMatrix = FilterUtils.getMatrixForFilter(filterName);
-                      print('필터 매트릭스 적용됨: $_currentMatrix'); // 디버그용
-                    } else {
-                      // 필터 해제 시 기본 매트릭스로 복원
-                      _currentMatrix = [
-                        1.0, 0.0, 0.0, 0.0, 0.0,
-                        0.0, 1.0, 0.0, 0.0, 0.0,
-                        0.0, 0.0, 1.0, 0.0, 0.0,
-                        0.0, 0.0, 0.0, 1.0, 0.0,
-                      ];
-                      print('기본 매트릭스로 복원됨'); // 디버그용
-                    }
-                  });
-                },
+              return Container(
+                margin: const EdgeInsets.only(right: 14),
+                child: FilterOptionCard(
+                  filter: FilterOption.fromPreset(filterName, category.name),
+                  isSelected: index == _selectedFilterIndex,
+                  onTap: () {
+                    print('필터 선택: $filterName'); // 디버그용
+                    setState(() {
+                      _selectedFilterIndex = index == _selectedFilterIndex ? -1 : index;
+                      if (_selectedFilterIndex != -1) {
+                        _currentMatrix = FilterUtils.getMatrixForFilter(filterName);
+                        print('필터 매트릭스 적용됨: $_currentMatrix'); // 디버그용
+                        // 상태 업데이트
+                        _imageState.updateFilter(filterName);
+                        _imageState.updateMatrix(_currentMatrix);
+                      } else {
+                        // 필터 해제 시 기본 매트릭스로 복원
+                        _currentMatrix = [
+                          1.0, 0.0, 0.0, 0.0, 0.0,
+                          0.0, 1.0, 0.0, 0.0, 0.0,
+                          0.0, 0.0, 1.0, 0.0, 0.0,
+                          0.0, 0.0, 0.0, 1.0, 0.0,
+                        ];
+                        print('기본 매트릭스로 복원됨'); // 디버그용
+                        // 상태 업데이트
+                        _imageState.updateFilter(null);
+                        _imageState.updateMatrix(_currentMatrix);
+                      }
+                    });
+                  },
+                ),
               );
             },
           ),
@@ -284,37 +383,42 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   }
   
   Widget _buildActionButtons() {
-    return Row(
-      children: [
-        Expanded(
-          child: CustomButton(
-            text: '미리보기',
-            isOutlined: true,
-            onPressed: _originalImage != null ? () => _showPreviewDialog() : () {},
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: CustomButton(
+              text: '미리보기',
+              isOutlined: true,
+              onPressed: _originalImage != null ? () => _showPreviewDialog() : () {},
+            ),
           ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: CustomButton(
-            text: '편집 시작',
-            onPressed: _originalImage != null ? () => _navigateToEditScreen() : () {},
+          const SizedBox(width: 16),
+          Expanded(
+            child: CustomButton(
+              text: '편집 시작',
+              icon: Icons.edit,
+              onPressed: _originalImage != null ? () => _navigateToEditScreen() : () {},
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
   
   Widget _buildBottomNav() {
     return Container(
-      height: 80,
+      height: 72,
       decoration: BoxDecoration(
         color: AppColors.surface,
-        border: Border(top: BorderSide(color: AppColors.border)),
+        border: Border(top: BorderSide(color: AppColors.border.withOpacity(0.3))),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
+            color: AppColors.shadowLight,
+            blurRadius: 16,
+            spreadRadius: 0,
+            offset: const Offset(0, -4),
           ),
         ],
       ),
@@ -322,9 +426,8 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           _buildNavItem('편집', Icons.edit, 0),
-          _buildNavItem('템플릿', Icons.grid_view, 1),
-          _buildNavItem('브랜딩', Icons.palette, 2),
-          _buildNavItem('즐겨찾기', Icons.favorite, 3),
+          _buildNavItem('브랜딩', Icons.palette, 1),
+          _buildNavItem('즐겨찾기', Icons.favorite, 2),
         ],
       ),
     );
@@ -334,19 +437,15 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     final isSelected = _selectedNavIndex == index;
     return GestureDetector(
       onTap: () {
-        if (index == 2) {
+        if (index == 1) {
+          // 브랜딩 탭 - 현재 편집된 상태를 전달
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => BrandingScreen(
-                baseImage: _originalImage,
-                selectedFilter: _selectedFilterIndex >= 0 
-                  ? FilterCategory.categories[_selectedCategoryIndex].filters[_selectedFilterIndex]
-                  : null,
-              ),
+              builder: (context) => BrandingScreen(),
             ),
           );
-        } else if (index == 3) {
+        } else if (index == 2) {
           // 즐겨찾기 탭
           Navigator.push(
             context,
@@ -358,14 +457,6 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
               ),
             ),
           );
-        } else if (index == 1) {
-          // 템플릿 탭
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => TemplatesScreen(),
-            ),
-          );
         } else {
           setState(() {
             _selectedNavIndex = index;
@@ -374,23 +465,165 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primary : null,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: isSelected ? AppColors.lightShadow : null,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
               icon,
-              color: isSelected ? AppColors.primary : AppColors.textSecondary,
+              color: isSelected ? Colors.white : AppColors.textSecondary,
               size: 24,
             ),
             const SizedBox(height: 4),
             Text(
               label,
               style: AppTextStyles.navText.copyWith(
-                color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                color: isSelected ? Colors.white : AppColors.textSecondary,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                fontSize: 12,
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+  
+  void _showPreviewDialog() {
+    if (_originalImage == null) return;
+
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withOpacity(0.6),
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                AppColors.surface.withOpacity(0.95),
+                AppColors.surface.withOpacity(0.9),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: AppColors.border.withOpacity(0.3), width: 1),
+            boxShadow: AppColors.heavyShadow,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // 헤더
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.primary.withOpacity(0.2)),
+                ),
+                child: Text(
+                  '미리보기', 
+                  style: AppTextStyles.sectionTitle.copyWith(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.5,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              
+              // 이미지 미리보기
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: AppColors.mediumShadow,
+                  border: Border.all(color: AppColors.border.withOpacity(0.3), width: 1),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: RepaintBoundary(
+                    key: _previewKey,
+                    child: ColorFiltered(
+                      colorFilter: ColorFilter.matrix(_currentMatrix),
+                      child: kIsWeb
+                        ? Image.memory(
+                            _originalImage,
+                            height: 240,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                          )
+                        : Image.file(
+                            _originalImage,
+                            height: 240,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                          ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              
+              // 필터 정보
+              if (_selectedFilterIndex >= 0) ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: AppColors.lightShadow,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.filter_vintage, color: Colors.white, size: 18),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${FilterCategory.categories[_selectedCategoryIndex].filters[_selectedFilterIndex]}',
+                        style: AppTextStyles.categoryDesc.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ],
+              
+              // 버튼들
+              Row(
+                children: [
+                  Expanded(
+                    child: CustomButton(
+                      text: '저장',
+                      icon: Icons.save_alt,
+                      isLoading: _isSavingFromPreview,
+                      onPressed: _isSavingFromPreview ? () {} : () => _saveFilteredImageFromPreview(),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: CustomButton(
+                      text: '닫기',
+                      isOutlined: true,
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -405,30 +638,77 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
 
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
       builder: (context) => Container(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              AppColors.surface.withOpacity(0.95),
+              AppColors.surface,
+            ],
+          ),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          border: Border.all(color: AppColors.border.withOpacity(0.3), width: 1),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.shadowMedium,
+              blurRadius: 32,
+              spreadRadius: 0,
+              offset: const Offset(0, -8),
+            ),
+          ],
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // 핸들 바
             Container(
-              width: 40,
+              width: 48,
               height: 4,
               decoration: BoxDecoration(
                 color: AppColors.border,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-            const SizedBox(height: 20),
-            Text('사진 선택', style: AppTextStyles.sectionTitle),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
+            
+            // 헤더
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              decoration: BoxDecoration(
+                color: AppColors.primary,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: AppColors.lightShadow,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.photo_camera, color: Colors.white, size: 22),
+                  const SizedBox(width: 12),
+                  Text(
+                    '사진 선택', 
+                    style: AppTextStyles.sectionTitle.copyWith(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+            
+            // 버튼들
             Row(
               children: [
                 Expanded(
                   child: CustomButton(
                     text: '카메라',
+                    icon: Icons.camera_alt,
                     isOutlined: true,
                     onPressed: () {
                       Navigator.pop(context);
@@ -436,10 +716,11 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                     },
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 16),
                 Expanded(
                   child: CustomButton(
                     text: '갤러리',
+                    icon: Icons.photo_library,
                     onPressed: () {
                       Navigator.pop(context);
                       _pickImage(ImageSource.gallery);
@@ -448,7 +729,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                 ),
               ],
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
           ],
         ),
       ),
@@ -478,6 +759,10 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
               0.0, 0.0, 0.0, 1.0, 0.0,
             ];
           });
+          // 상태 업데이트
+          _imageState.updateImage(bytes);
+          _imageState.updateFilter(null);
+          _imageState.updateMatrix(_currentMatrix);
         } else {
           // 모바일에서는 File 객체 사용
           setState(() {
@@ -492,6 +777,10 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
               0.0, 0.0, 0.0, 1.0, 0.0,
             ];
           });
+          // 상태 업데이트
+          _imageState.updateImage(File(image.path));
+          _imageState.updateFilter(null);
+          _imageState.updateMatrix(_currentMatrix);
         }
       }
     } catch (e) {
@@ -502,79 +791,6 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
         const SnackBar(content: Text('이미지를 가져오는데 실패했습니다.')),
       );
     }
-  }
-  
-  void _showPreviewDialog() {
-    if (_originalImage == null) return;
-
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('미리보기', style: AppTextStyles.sectionTitle),
-              const SizedBox(height: 16),
-              RepaintBoundary(
-                key: _previewKey,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: ColorFiltered(
-                    colorFilter: ColorFilter.matrix(_currentMatrix),
-                    child: kIsWeb
-                      ? Image.memory(
-                          _originalImage,
-                          height: 200,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                        )
-                      : Image.file(
-                          _originalImage,
-                          height: 200,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                        ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              if (_selectedFilterIndex >= 0) ...[
-                Text(
-                  '선택된 필터: ${FilterCategory.categories[_selectedCategoryIndex].filters[_selectedFilterIndex]}',
-                  style: AppTextStyles.categoryDesc,
-                ),
-                const SizedBox(height: 8),
-              ],
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
-                    child: CustomButton(
-                      text: '저장',
-                      isLoading: _isSavingFromPreview,
-                      onPressed: _isSavingFromPreview ? () {} : () => _saveFilteredImageFromPreview(),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: CustomButton(
-                      text: '닫기',
-                      isOutlined: true,
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
   
   Future<Uint8List?> _captureRepaintBoundary() async {
@@ -671,6 +887,13 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   }
   
   void _navigateToEditScreen() {
+    // 현재 상태를 ImageState에 저장
+    _imageState.updateImage(_originalImage);
+    _imageState.updateFilter(_selectedFilterIndex >= 0 
+      ? FilterCategory.categories[_selectedCategoryIndex].filters[_selectedFilterIndex]
+      : null);
+    _imageState.updateMatrix(_currentMatrix);
+    
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -773,6 +996,16 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
       // 두 매트릭스 합성
       _currentMatrix = _combineMatrices(baseMatrix, adjustmentMatrix);
     });
+
+    // 상태 업데이트
+    _imageState.updateFilter(preset.filterType);
+    _imageState.updateAdjustments(
+      brightness: preset.brightness,
+      contrast: preset.contrast,
+      saturation: preset.saturation,
+      warmth: preset.warmth,
+    );
+    _imageState.updateMatrix(_currentMatrix);
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(

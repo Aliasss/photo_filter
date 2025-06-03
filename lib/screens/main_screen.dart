@@ -423,11 +423,16 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
         ],
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _buildNavItem('편집', Icons.edit, 0),
-          _buildNavItem('브랜딩', Icons.palette, 1),
-          _buildNavItem('즐겨찾기', Icons.favorite, 2),
+          Expanded(
+            child: _buildNavItem('편집', Icons.edit, 0),
+          ),
+          Expanded(
+            child: _buildNavItem('브랜딩', Icons.palette, 1),
+          ),
+          Expanded(
+            child: _buildNavItem('즐겨찾기', Icons.favorite, 2),
+          ),
         ],
       ),
     );
@@ -465,7 +470,8 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
         decoration: BoxDecoration(
           color: isSelected ? AppColors.primary : null,
           borderRadius: BorderRadius.circular(12),
@@ -473,6 +479,8 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Icon(
               icon,
@@ -487,6 +495,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                 fontSize: 12,
               ),
+              textAlign: TextAlign.center,
             ),
           ],
         ),

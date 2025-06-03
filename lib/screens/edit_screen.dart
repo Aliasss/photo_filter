@@ -7,6 +7,8 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/rendering.dart';
 import 'package:image_gallery_saver/image_gallery_saver.dart';
 import 'package:intl/intl.dart';
+import 'package:crop_your_image/crop_your_image.dart';
+import 'package:path_provider/path_provider.dart';
 import '../constants/colors.dart';
 import '../constants/text_styles.dart';
 import '../models/filter_category.dart';
@@ -43,10 +45,18 @@ class _EditScreenState extends State<EditScreen> {
   final GlobalKey _imageKey = GlobalKey(); // RepaintBoundary 키
   final FavoritesStorage _favoritesStorage = FavoritesStorage(); // 즐겨찾기 저장소
   final ImageState _imageState = ImageState(); // 전역 상태 관리
+  
+  // 크롭 관련 변수들
+  bool _isCropMode = false;
+  final CropController _cropController = CropController();
+  Uint8List? _originalImageBytes;
+  Uint8List? _croppedImageBytes;
+  double _selectedAspectRatio = -1; // -1: 자유 비율, 1: 1:1, 4/3: 4:3, 16/9: 16:9
 
   @override
   void initState() {
     super.initState();
+    _prepareOriginalImageBytes();
     // 기본 필터 매트릭스 설정
     if (widget.selectedFilter != null) {
       _baseFilterMatrix = FilterUtils.getMatrixForFilter(widget.selectedFilter!);
@@ -61,6 +71,19 @@ class _EditScreenState extends State<EditScreen> {
     }
     _currentMatrix = List.from(_baseFilterMatrix);
     _updateMatrix();
+  }
+
+  Future<void> _prepareOriginalImageBytes() async {
+    try {
+      if (kIsWeb) {
+        _originalImageBytes = widget.image as Uint8List;
+      } else {
+        final file = widget.image as File;
+        _originalImageBytes = await file.readAsBytes();
+      }
+    } catch (e) {
+      print('원본 이미지 바이트 준비 오류: $e');
+    }
   }
 
   void _updateMatrix() {
@@ -196,12 +219,46 @@ class _EditScreenState extends State<EditScreen> {
       appBar: AppBar(
         backgroundColor: AppColors.surface,
         elevation: 0,
-        title: Text('사진 편집', style: AppTextStyles.sectionTitle),
+        title: Text(_isCropMode ? '이미지 자르기' : '사진 편집', style: AppTextStyles.sectionTitle),
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: AppColors.textPrimary),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            if (_isCropMode) {
+              _exitCropMode();
+            } else {
+              Navigator.pop(context);
+            }
+          },
         ),
-        actions: [
+        actions: _isCropMode ? [
+          // 크롭 모드에서의 액션 버튼들
+          TextButton(
+            onPressed: () => _exitCropMode(),
+            child: Text(
+              '취소',
+              style: AppTextStyles.buttonText.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              _applyCrop();
+            },
+            child: Text(
+              '적용',
+              style: AppTextStyles.buttonText.copyWith(
+                color: AppColors.primary,
+              ),
+            ),
+          ),
+        ] : [
+          // 초기화 버튼을 상단으로 이동
+          IconButton(
+            icon: Icon(Icons.refresh, color: AppColors.textSecondary),
+            onPressed: _resetValues,
+            tooltip: '초기화',
+          ),
           IconButton(
             icon: _isSaving
               ? const SizedBox(
@@ -235,139 +292,245 @@ class _EditScreenState extends State<EditScreen> {
           Expanded(
             child: Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              child: Center(
-                child: RepaintBoundary(
-                  key: _imageKey,
-                  child: ColorFiltered(
-                    colorFilter: ColorFilter.matrix(_currentMatrix),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: kIsWeb
-                        ? Image.memory(
-                            widget.image as Uint8List,
-                            fit: BoxFit.contain,
-                          )
-                        : Image.file(
-                            widget.image as File,
-                            fit: BoxFit.contain,
-                          ),
-                    ),
-                  ),
-                ),
-              ),
+              padding: EdgeInsets.all(_isCropMode ? 0 : 16),
+              child: _isCropMode ? _buildCropView() : _buildEditView(),
             ),
           ),
           // 편집 컨트롤 영역
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, -2),
-                ),
-              ],
-            ),
-            child: Column(
+          _isCropMode ? _buildCropControls() : _buildEditControls(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEditView() {
+    return Center(
+      child: RepaintBoundary(
+        key: _imageKey,
+        child: ColorFiltered(
+          colorFilter: ColorFilter.matrix(_currentMatrix),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: _getCurrentImageWidget(),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCropView() {
+    if (_originalImageBytes == null) {
+      return const Center(
+        child: CircularProgressIndicator(),
+      );
+    }
+    
+    return Crop(
+      key: ValueKey(_selectedAspectRatio),
+      image: _originalImageBytes!,
+      controller: _cropController,
+      onCropped: _onCropCompleted,
+      aspectRatio: _selectedAspectRatio == -1 ? null : _selectedAspectRatio,
+      baseColor: AppColors.background,
+      maskColor: Colors.black.withOpacity(0.5),
+      progressIndicator: const CircularProgressIndicator(),
+    );
+  }
+
+  Widget _getCurrentImageWidget() {
+    // 크롭된 이미지가 있으면 크롭된 이미지 사용, 없으면 원본 이미지 사용
+    if (_croppedImageBytes != null) {
+      return Image.memory(
+        _croppedImageBytes!,
+        fit: BoxFit.contain,
+      );
+    } else if (kIsWeb) {
+      return Image.memory(
+        widget.image as Uint8List,
+        fit: BoxFit.contain,
+      );
+    } else {
+      return Image.file(
+        widget.image as File,
+        fit: BoxFit.contain,
+      );
+    }
+  }
+
+  Widget _buildCropControls() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '비율 선택',
+            style: AppTextStyles.sectionTitle.copyWith(fontSize: 16),
+          ),
+          const SizedBox(height: 12),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
               children: [
-                // 현재 필터 표시
-                if (widget.selectedFilter != null) ...[
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Text(
-                      '적용된 필터: ${widget.selectedFilter}',
-                      style: AppTextStyles.categoryDesc.copyWith(
-                        color: AppColors.primary,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                ],
-                _buildAdjustmentSlider(
-                  '밝기',
-                  _brightness,
-                  -100.0,
-                  100.0,
-                  (value) {
-                    setState(() {
-                      _brightness = value;
-                    });
-                    _updateMatrix();
-                  },
-                ),
-                const SizedBox(height: 16),
-                _buildAdjustmentSlider(
-                  '대비',
-                  _contrast,
-                  -100.0,
-                  100.0,
-                  (value) {
-                    setState(() {
-                      _contrast = value;
-                    });
-                    _updateMatrix();
-                  },
-                ),
-                const SizedBox(height: 16),
-                _buildAdjustmentSlider(
-                  '채도',
-                  _saturation,
-                  -100.0,
-                  100.0,
-                  (value) {
-                    setState(() {
-                      _saturation = value;
-                    });
-                    _updateMatrix();
-                  },
-                ),
-                const SizedBox(height: 16),
-                _buildAdjustmentSlider(
-                  '따뜻함',
-                  _warmth,
-                  -100.0,
-                  100.0,
-                  (value) {
-                    setState(() {
-                      _warmth = value;
-                    });
-                    _updateMatrix();
-                  },
-                ),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Expanded(
-                      child: CustomButton(
-                        text: '프리셋 저장',
-                        icon: Icons.favorite,
-                        isOutlined: true,
-                        isLoading: _isSavingPreset,
-                        onPressed: _isSavingPreset ? () {} : _showSavePresetDialog,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: CustomButton(
-                        text: '초기화',
-                        isOutlined: true,
-                        icon: Icons.refresh,
-                        onPressed: _resetValues,
-                      ),
-                    ),
-                  ],
-                ),
+                _buildAspectRatioButton('자유', -1),
+                const SizedBox(width: 8),
+                _buildAspectRatioButton('1:1', 1.0),
+                const SizedBox(width: 8),
+                _buildAspectRatioButton('4:3', 4.0 / 3.0),
+                const SizedBox(width: 8),
+                _buildAspectRatioButton('16:9', 16.0 / 9.0),
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAspectRatioButton(String label, double ratio) {
+    final isSelected = _selectedAspectRatio == ratio;
+    
+    return GestureDetector(
+      onTap: () => _setAspectRatio(ratio),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primary : AppColors.background,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? AppColors.primary : AppColors.border,
+          ),
+        ),
+        child: Text(
+          label,
+          style: AppTextStyles.categoryDesc.copyWith(
+            color: isSelected ? Colors.white : AppColors.textPrimary,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEditControls() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // 하단 액션 버튼들 (초기화 버튼 제거)
+          Row(
+            children: [
+              Expanded(
+                child: CustomButton(
+                  text: '자르기',
+                  icon: Icons.crop,
+                  isOutlined: true,
+                  onPressed: _enterCropMode,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: CustomButton(
+                  text: '프리셋 저장',
+                  icon: Icons.favorite,
+                  isOutlined: true,
+                  isLoading: _isSavingPreset,
+                  onPressed: _isSavingPreset ? () {} : _showSavePresetDialog,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          // 현재 필터 표시
+          if (widget.selectedFilter != null) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Text(
+                '적용된 필터: ${widget.selectedFilter}',
+                style: AppTextStyles.categoryDesc.copyWith(
+                  color: AppColors.primary,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+          _buildAdjustmentSlider(
+            '밝기',
+            _brightness,
+            -100.0,
+            100.0,
+            (value) {
+              setState(() {
+                _brightness = value;
+              });
+              _updateMatrix();
+            },
+          ),
+          const SizedBox(height: 16),
+          _buildAdjustmentSlider(
+            '대비',
+            _contrast,
+            -100.0,
+            100.0,
+            (value) {
+              setState(() {
+                _contrast = value;
+              });
+              _updateMatrix();
+            },
+          ),
+          const SizedBox(height: 16),
+          _buildAdjustmentSlider(
+            '채도',
+            _saturation,
+            -100.0,
+            100.0,
+            (value) {
+              setState(() {
+                _saturation = value;
+              });
+              _updateMatrix();
+            },
+          ),
+          const SizedBox(height: 16),
+          _buildAdjustmentSlider(
+            '따뜻함',
+            _warmth,
+            -100.0,
+            100.0,
+            (value) {
+              setState(() {
+                _warmth = value;
+              });
+              _updateMatrix();
+            },
           ),
         ],
       ),
@@ -631,5 +794,111 @@ class _EditScreenState extends State<EditScreen> {
         _isSavingPreset = false;
       });
     }
+  }
+
+  void _enterCropMode() {
+    setState(() {
+      _isCropMode = true;
+      _selectedAspectRatio = -1; // 기본값: 자유 비율
+    });
+  }
+
+  void _exitCropMode({bool applyCrop = false}) {
+    setState(() {
+      _isCropMode = false;
+      if (!applyCrop) {
+        _croppedImageBytes = null; // 취소 시 크롭된 이미지 제거
+      }
+    });
+  }
+
+  // Uint8List를 임시 파일로 저장하는 함수
+  Future<File?> _saveUint8ListToTempFile(Uint8List data) async {
+    try {
+      final tempDir = await getTemporaryDirectory();
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final tempFile = File('${tempDir.path}/cropped_image_$timestamp.jpg');
+      await tempFile.writeAsBytes(data);
+      return tempFile;
+    } catch (e) {
+      print('임시 파일 저장 오류: $e');
+      return null;
+    }
+  }
+
+  void _onCropCompleted(CropResult result) {
+    switch (result) {
+      case CropSuccess(:final croppedImage):
+        // 크롭 성공 시 처리
+        _saveCroppedImageAndUpdateState(croppedImage);
+        
+      case CropFailure(:final cause):
+        // 크롭 실패 시 처리
+        _exitCropMode(applyCrop: false);
+        
+        // 사용자에게 에러 알림
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.error, color: Colors.white),
+                const SizedBox(width: 8),
+                Expanded(child: Text('이미지 자르기 실패: $cause')),
+              ],
+            ),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+    }
+  }
+
+  Future<void> _saveCroppedImageAndUpdateState(Uint8List croppedImage) async {
+    setState(() {
+      _croppedImageBytes = croppedImage;
+    });
+
+    // 웹이 아닌 경우 임시 파일로 저장
+    if (!kIsWeb) {
+      final tempFile = await _saveUint8ListToTempFile(croppedImage);
+      if (tempFile != null) {
+        // 임시 파일을 전역 상태에 업데이트
+        _imageState.updateImage(tempFile);
+      }
+    } else {
+      // 웹의 경우 Uint8List 그대로 전달
+      _imageState.updateImage(croppedImage);
+    }
+    
+    // 크롭 완료 후 자동으로 편집 모드로 돌아가기
+    _exitCropMode(applyCrop: true);
+    
+    // 사용자에게 성공 알림
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(Icons.check_circle, color: Colors.white),
+            const SizedBox(width: 8),
+            Text('이미지가 성공적으로 잘렸습니다.'),
+          ],
+        ),
+        backgroundColor: Colors.green,
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  void _applyCrop() {
+    _cropController.crop();
+  }
+
+  void _setAspectRatio(double ratio) {
+    setState(() {
+      _selectedAspectRatio = ratio;
+    });
+    // 상태 변경으로 위젯이 다시 빌드되어 새로운 aspectRatio가 적용됩니다
   }
 } 
